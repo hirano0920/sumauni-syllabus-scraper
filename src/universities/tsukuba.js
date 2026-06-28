@@ -67,6 +67,7 @@ async function parseFile(filePath) {
 
 function mapRows(rows, year) {
   const courses = [];
+  let dumped = 0;
   // 1行目はヘッダーなのでスキップ
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
@@ -83,6 +84,14 @@ function mapRows(rows, year) {
 
     const { dayOfWeek, period } = parseDayPeriod(dayPeriodRaw);
     if (!dayOfWeek || !period) continue;
+
+    // 有効行を3件だけ全列ダンプして列マッピングを検証
+    if (dumped < 3) {
+      const full = r.map((v, idx) => `[${idx}]${`${v}`.slice(0, 16)}`).join(' | ');
+      console.log(`[tsukuba] 有効行${dumped}: ${full}`);
+      console.log(`  → 抽出: name="${name}" 曜時限="${dayPeriodRaw}" 担当="${instructor}"`);
+      dumped++;
+    }
 
     const slotKey = buildSlotKey({ universityName: UNIVERSITY_NAME, dayJa: dayOfWeek, period, subject: name });
     const lectureId = buildLectureId({ universityName: UNIVERSITY_NAME, dayJa: dayOfWeek, period, subject: name });
