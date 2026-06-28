@@ -9,6 +9,15 @@ export async function recon(name, url) {
   console.log(`\n[recon] ${name} → ${url}`);
 
   await withPage(async (page) => {
+    // APIリクエストを傍受（SPA内部のREST/GraphQL呼び出しを捕捉）
+    const apiRequests = [];
+    page.on('request', req => {
+      const u = req.url();
+      if (/api|syllabus|search|course|subject|json/i.test(u) && !u.includes('google') && !u.includes('analytics')) {
+        apiRequests.push(`${req.method()} ${u.slice(0, 120)}`);
+      }
+    });
+
     try {
       await page.goto(url, { waitUntil: 'networkidle', timeout: 40000 });
     } catch (e) {
@@ -17,7 +26,7 @@ export async function recon(name, url) {
     }
 
     // SPA対応: JS描画が完了するまで追加で待つ
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(6000);
     const finalUrl = page.url();
     const title = await page.title();
     console.log(`[recon] 最終URL: ${finalUrl}`);
@@ -64,6 +73,9 @@ export async function recon(name, url) {
       ).slice(0, 12)
     );
     console.log(`[recon] テーブル:\n${tables.join('\n') || '(なし)'}`);
+
+    // APIリクエスト一覧
+    console.log(`[recon] APIリクエスト(${apiRequests.length}):\n${apiRequests.slice(0, 20).join('\n') || '(なし)'}`);
 
     // スクリーンショット
     if (process.env.PLAYWRIGHT_SCREENSHOT === '1') {
