@@ -306,15 +306,35 @@ async function scrapePages(page, structure, u, faculty, year, allCourses, seen) 
     }
 
     if (added === 0) break;
-    if (!structure.pagination?.nextSelector) break;
-    const next = page.locator(structure.pagination.nextSelector).first();
-    if (await next.count() === 0) break;
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }).catch(() => {}),
-      next.click().catch(() => {}),
-    ]).catch(() => {});
+
+    // ページネーション: 複数の方法を試す
+    const nextPageNum = pageNum + 1;
+    // 方法1: AIが返したnextSelectorを試す
+    let nextFound = false;
+    if (structure.pagination?.nextSelector) {
+      const next = page.locator(structure.pagination.nextSelector).first();
+      if (await next.count() > 0) {
+        await Promise.all([
+          page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }).catch(() => {}),
+          next.click().catch(() => {}),
+        ]).catch(() => {});
+        nextFound = true;
+      }
+    }
+    // 方法2: 次のページ番号リンクを探す (1/465 形式のページネーション)
+    if (!nextFound) {
+      const numLink = page.locator(`a:text-is("${nextPageNum}"), a:has-text("次"), a:has-text("Next")`).first();
+      if (await numLink.count() > 0) {
+        await Promise.all([
+          page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }).catch(() => {}),
+          numLink.click().catch(() => {}),
+        ]).catch(() => {});
+        nextFound = true;
+      }
+    }
+    if (!nextFound) break;
     await page.waitForTimeout(700);
     pageNum++;
-    if (pageNum > 200) break;
+    if (pageNum > 500) break;
   }
 }
