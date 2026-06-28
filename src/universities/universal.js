@@ -275,6 +275,11 @@ async function scrapePages(page, structure, u, faculty, year, allCourses, seen) 
     const $ = cheerio.load(html);
     const raw = extractCourses($, structure, u, faculty, year);
 
+    // 最初のページで0件のとき、最初の行の内容をログ出力して原因を特定
+    if (pageNum === 1 && raw.length > 0 && raw.every(c => !parseDayPeriod(c.dayPeriodRaw).dayOfWeek)) {
+      L(u, `0件デバッグ: raw=${raw.length} 最初の行: name="${raw[0]?.name}" dayPeriod="${raw[0]?.dayPeriodRaw}" instructor="${raw[0]?.instructor}"`);
+    }
+
     let added = 0;
     for (const c of raw) {
       const { dayOfWeek, period } = parseDayPeriod(c.dayPeriodRaw);
