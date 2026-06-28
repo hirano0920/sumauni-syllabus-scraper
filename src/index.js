@@ -19,6 +19,7 @@ import { parseCourseListPage as cpListParser, parseCourseDetailPage as cpDetailP
 import { scrapeAll as scrapeTsukuba } from './universities/tsukuba.js';
 import { scrapeAll as scrapeWaseda } from './universities/waseda.js';
 import { scrapeAll as scrapeDoshisha } from './universities/doshisha.js';
+import { scrapeUniversal } from './universities/universal.js';
 import { recon } from './lib/recon.js';
 import universities from '../config/universities.json' assert { type: 'json' };
 import pLimit from 'p-limit';
@@ -79,6 +80,19 @@ async function main() {
   if (!CMS_FILTER || CMS_FILTER === 'campusplan' || CMS_FILTER === 'doshisha') {
     if (!UNIV_FILTER || UNIV_FILTER === '同志社大学') {
       await runScraper('同志社大学', () => scrapeDoshisha(fetcher, YEAR), results);
+    }
+  }
+
+  // --- AIユニバーサルスクレイパー (--cms=universal) ---
+  // 専用スクレイパーがない大学に対してAI自動解析で対応
+  if (CMS_FILTER === 'universal') {
+    const all = [
+      ...universities.livecampus, ...universities.campusplan,
+      ...universities.gakuen, ...universities.custom,
+    ];
+    const targets = UNIV_FILTER ? all.filter(u => u.name === UNIV_FILTER) : all;
+    for (const univ of targets) {
+      await runScraper(univ.name, () => scrapeUniversal(univ, YEAR), results);
     }
   }
 
