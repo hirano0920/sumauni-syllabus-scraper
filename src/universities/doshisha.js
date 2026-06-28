@@ -120,7 +120,8 @@ async function scrapeFaculty(page, year, faculty, seen) {
       console.log(`[doshisha] body冒頭: ${bodyText}`);
     }
 
-    const rows = $('table.search-table tr, table.search-table__content tr')
+    // 確認済み: 同志社結果テーブルは class="result__table"
+    const rows = $('table.result__table tr')
       .filter((_, tr) => $(tr).find('td').length >= 4);
 
     let added = 0;
