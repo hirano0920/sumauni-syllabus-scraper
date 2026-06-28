@@ -72,33 +72,34 @@ async function scrapeFacultySemester(page, year, faculty, sem, seen) {
   let pageNum = 1;
 
   while (true) {
-    // POSTリクエストをページ経由で送る
-    await page.evaluate(({ postUrl, params }) => {
-      const form = document.createElement('form');
-      form.method = 'post';
-      form.action = postUrl;
-      for (const [k, v] of Object.entries(params)) {
-        const input = document.createElement('input');
-        input.name = k; input.value = v; form.appendChild(input);
-      }
-      document.body.appendChild(form);
-      form.submit();
-    }, {
-      postUrl: POST_URL,
-      params: {
-        p_nendo: `${year}`,
-        p_gakubu: faculty.code,
-        p_gakki: sem.code,
-        p_wday: '',
-        p_jigen: '',
-        p_gengo: '0',
-        p_number: '100',
-        p_page: `${pageNum}`,
-        p_action: 'next',
-      },
-    });
-
-    await page.waitForLoadState('networkidle', { timeout: 30000 });
+    // POSTリクエスト: ナビゲーション完了を待ちながらフォームをsubmit
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }),
+      page.evaluate(({ postUrl, params }) => {
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = postUrl;
+        for (const [k, v] of Object.entries(params)) {
+          const input = document.createElement('input');
+          input.name = k; input.value = v; form.appendChild(input);
+        }
+        document.body.appendChild(form);
+        form.submit();
+      }, {
+        postUrl: POST_URL,
+        params: {
+          p_nendo: `${year}`,
+          p_gakubu: faculty.code,
+          p_gakki: sem.code,
+          p_wday: '',
+          p_jigen: '',
+          p_gengo: '0',
+          p_number: '100',
+          p_page: `${pageNum}`,
+          p_action: 'next',
+        },
+      }),
+    ]);
 
     const html = await page.content();
     const $ = cheerio.load(html);
