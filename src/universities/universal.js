@@ -10,7 +10,7 @@
  */
 import * as cheerio from 'cheerio';
 import { withPage } from '../lib/browser.js';
-import { analyzeForm, analyzeStructure, extractCourses } from '../lib/ai_analyzer.js';
+import { analyzeForm, analyzeStructure, analyzeJson, extractCourses } from '../lib/ai_analyzer.js';
 import { buildLectureId, buildSlotKey, normalizeSubject, normalizeInstructor } from '../lib/lecture_id.js';
 
 const DAY_MAP = { '月':'月曜日','火':'火曜日','水':'水曜日','木':'木曜日','金':'金曜日','土':'土曜日' };
@@ -32,20 +32,41 @@ export async function scrapeUniversal(univConfig, year = 2026) {
   const allCourses = [];
   const seen = new Set();
 
+  // SPAが叩くJSON APIレスポンスを傍受
+  const jsonResponses = [];
+
   await withPage(async (page) => {
+    page.on('response', async (res) => {
+      try {
+        const ct = res.headers()['content-type'] || '';
+        if (!ct.includes('json')) return;
+        const url = res.url();
+        if (/analytics|gtag|google|sentry/i.test(url)) return;
+        const body = await res.json().catch(() => null);
+        if (body) jsonResponses.push({ url: url.slice(0, 120), body });
+      } catch { /* ignore */ }
+    });
+
     // 1. ページを開く
     try {
       await page.goto(syllabusBase, { waitUntil: 'networkidle', timeout: 45000 });
     } catch {
       await page.goto(syllabusBase, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
     }
-    await page.waitForTimeout(4000);
+
+    // SPA描画待ち: 操作要素が現れるまで最大15秒待つ
+    await page.waitForSelector('select, input[type="submit"], button', { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(3000);
 
     // 2. 操作要素を実DOMから抽出
     const elements = await extractInteractiveElements(page);
-    L(u, `select数=${elements.selects.length} button数=${elements.buttons.length}`);
+    L(u, `select数=${elements.selects.length} button数=${elements.buttons.length} JSON傍受=${jsonResponses.length}`);
+
     if (elements.selects.length === 0 && elements.buttons.length === 0) {
-      L(u, `操作要素なし(SPA or 別ページ) — スキップ`);
+      // SPA: 傍受したJSON APIレスポンスから科目データを探す
+      L(u, `操作要素なし(SPA) — JSON傍受モードへ`);
+      const courses = await tryJsonMode(u, jsonResponses, year, seen);
+      allCourses.push(...courses);
       return;
     }
 
@@ -138,6 +159,95 @@ export async function scrapeUniversal(univConfig, year = 2026) {
 
   L(u, `合計 ${allCourses.length}科目`);
   return allCourses;
+}
+
+/**
+ * SPA: 傍受したJSONレスポンスから科目配列を探してAIに構造解析させる。
+ */
+async function tryJsonMode(u, jsonResponses, year, seen) {
+  const courses = [];
+  if (jsonResponses.length === 0) {
+    L(u, `JSON傍受0件 — 取得不可(検索操作が必要なSPA)`);
+    return courses;
+  }
+
+  // 科目配列を含むレスポンスを探す(配列長が最大のもの)
+  let best = null;
+  for (const r of jsonResponses) {
+    const arr = findLargestArray(r.body);
+    if (arr && (!best || arr.length > best.arr.length)) best = { url: r.url, arr };
+  }
+  if (!best || best.arr.length < 3) {
+    L(u, `JSON内に科目配列が見つからない(候補${jsonResponses.length}件)`);
+    return courses;
+  }
+  L(u, `JSON配列発見: ${best.url} (${best.arr.length}件)`);
+
+  // 最初の1件をAIに見せてフィールドパスを判定
+  let fieldMap;
+  try {
+    fieldMap = await analyzeJson(u, best.arr[0]);
+    L(u, `JSONフィールド判定: name=${fieldMap.name} day=${fieldMap.day} period=${fieldMap.period}`);
+  } catch (e) {
+    L(u, `JSON解析失敗: ${e.message}`);
+    return courses;
+  }
+
+  for (const item of best.arr) {
+    const name = `${getPath(item, fieldMap.name) ?? ''}`.trim();
+    const dayRaw = `${getPath(item, fieldMap.day) ?? ''}`;
+    const periodRaw = `${getPath(item, fieldMap.period) ?? ''}`;
+    const instructor = `${getPath(item, fieldMap.instructor) ?? ''}`.trim();
+    if (!name || name.length < 2) continue;
+
+    const { dayOfWeek, period } = parseDayPeriod(`${dayRaw}${periodRaw}`);
+    if (!dayOfWeek || !period) continue;
+
+    const slotKey = buildSlotKey({ universityName: u, dayJa: dayOfWeek, period, subject: name });
+    const dedup = slotKey + instructor;
+    if (seen.has(dedup)) continue;
+    seen.add(dedup);
+    const lectureId = buildLectureId({ universityName: u, dayJa: dayOfWeek, period, subject: name });
+    courses.push({
+      universityName: u, year, semester: 'unknown',
+      name, nameNorm: normalizeSubject(name),
+      dayOfWeek, period, periodEnd: period,
+      room: '', instructor, instructorNorm: normalizeInstructor(instructor),
+      faculty: '', credits: 0, description: '', textbooks: [],
+      slotKey, lectureId,
+      lectureIdWithInstructor: instructor
+        ? buildLectureId({ universityName: u, dayJa: dayOfWeek, period, subject: name, instructor })
+        : lectureId,
+      cmsType: 'universal_json', sourceUrl: best.url,
+    });
+  }
+  L(u, `JSON抽出: ${courses.length}科目`);
+  return courses;
+}
+
+// オブジェクト/配列を再帰探索して最も長い「オブジェクトの配列」を返す
+function findLargestArray(obj, depth = 0) {
+  if (depth > 6 || obj == null) return null;
+  let best = null;
+  if (Array.isArray(obj)) {
+    if (obj.length > 0 && typeof obj[0] === 'object' && obj[0] !== null) best = obj;
+    for (const el of obj.slice(0, 50)) {
+      const sub = findLargestArray(el, depth + 1);
+      if (sub && (!best || sub.length > best.length)) best = sub;
+    }
+  } else if (typeof obj === 'object') {
+    for (const v of Object.values(obj)) {
+      const sub = findLargestArray(v, depth + 1);
+      if (sub && (!best || sub.length > best.length)) best = sub;
+    }
+  }
+  return best;
+}
+
+// "a.b.c" 形式のパスで値を取得
+function getPath(obj, path) {
+  if (!path) return undefined;
+  return path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
 }
 
 async function extractInteractiveElements(page) {

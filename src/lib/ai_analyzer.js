@@ -84,6 +84,37 @@ JSONのみ。`;
 }
 
 /**
+ * SPA傍受JSONの1要素を見せて、科目フィールドのパスをAIに判定させる。
+ * @param {object} sampleItem - 科目1件のJSONオブジェクト
+ * @returns {Promise<{name,instructor,day,period}>} ドット区切りパス
+ */
+export async function analyzeJson(universityName, sampleItem) {
+  const prompt = `
+大学名: ${universityName}
+以下は大学シラバスAPIが返す科目1件のJSONです:
+${JSON.stringify(sampleItem, null, 1).slice(0, 2000)}
+
+このJSONから各情報のキー(ドット区切りパス)をJSONで返してください:
+{
+  "name": "科目名のパス (例: subjectName)",
+  "instructor": "担当教員のパス (なければnull)",
+  "day": "曜日のパス (例: dayOfWeek)",
+  "period": "時限のパス (曜日と同じフィールドなら同じ値、なければnull)"
+}
+JSONのみ。`;
+  const res = await client.chat.completions.create({
+    model: MODEL,
+    max_tokens: 256,
+    response_format: { type: 'json_object' },
+    messages: [{ role: 'user', content: prompt }],
+  });
+  const text = res.choices[0].message.content.trim();
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error(`json解析失敗: ${text.slice(0, 150)}`);
+  return JSON.parse(m[0]);
+}
+
+/**
  * @param {string} universityName
  * @param {string} html - シラバス結果ページのHTML（先頭15000文字で十分）
  * @returns {Promise<object>} - 解析結果JSON
