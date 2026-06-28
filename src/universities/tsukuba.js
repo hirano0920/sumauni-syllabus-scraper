@@ -1,6 +1,6 @@
 /**
- * 筑波大学 KdB — Playwright版
- * form id="ut-SB0070-form", table class="ut-list"
+ * 筑波大学 KdB
+ * form#ut-SB0070-form を JS経由でsubmit → table.ut-list をパース
  */
 import * as cheerio from 'cheerio';
 import { mkdir } from 'fs/promises';
@@ -14,29 +14,40 @@ export async function scrapeAll(fetcher, year = 2025) {
   console.log(`[tsukuba] 開始 year=${year}`);
   const allCourses = [];
 
-  return withPage(async (page) => {
+  await withPage(async (page) => {
     await page.goto(TOP_URL, { waitUntil: 'networkidle', timeout: 30000 });
 
-    // 年度セレクトがあれば設定
-    const yearSel = page.locator('select[name*="nendo"], select[name*="year"], select[name*="Year"]');
-    if (await yearSel.count() > 0) {
-      await yearSel.first().selectOption(`${year}`).catch(() => {});
-    }
+    // ページ上の全ボタンをログ (デバッグ)
+    const allButtons = await page.evaluate(() =>
+      [...document.querySelectorAll('input, button, a')].filter(el =>
+        el.type === 'submit' || el.type === 'button' || el.tagName === 'BUTTON' ||
+        (el.tagName === 'A' && (el.textContent.includes('検索') || el.textContent.includes('search')))
+      ).map(el => `${el.tagName} type="${el.type}" value="${el.value}" text="${el.textContent.trim().slice(0,20)}" id="${el.id}" class="${el.className.slice(0,30)}"`)
+    );
+    console.log(`[tsukuba] ボタン候補:\n${allButtons.join('\n')}`);
 
-    // 全件検索: フォームをそのままsubmit（絞り込みなし）
-    await page.locator('#ut-SB0070-form input[type="submit"], #ut-SB0070-form button[type="submit"]').first().click();
+    // JS経由でフォームをsubmit (最も確実)
+    await page.evaluate(() => {
+      const form = document.querySelector('#ut-SB0070-form') || document.querySelector('form');
+      if (form) form.submit();
+    });
     await page.waitForLoadState('networkidle', { timeout: 30000 });
 
-    // スクリーンショット (デバッグ)
+    // スクリーンショット
     if (process.env.PLAYWRIGHT_SCREENSHOT === '1') {
       await mkdir('/tmp/scraper-screenshots', { recursive: true }).catch(() => {});
-      await page.screenshot({ path: '/tmp/scraper-screenshots/tsukuba_results.png', fullPage: false });
-      console.log('[tsukuba] スクリーンショット: tsukuba_results.png');
+      await page.screenshot({ path: '/tmp/scraper-screenshots/tsukuba_after_submit.png', fullPage: false });
     }
 
-    // 最初の行数確認
-    const firstCount = await page.locator('table.ut-list tbody tr').count();
-    console.log(`[tsukuba] 初期行数: ${firstCount}`);
+    // 結果確認
+    const rowCount = await page.locator('table.ut-list tr').count();
+    console.log(`[tsukuba] submit後 行数: ${rowCount}`);
+
+    // 最初の行の内容をログ
+    if (rowCount > 0) {
+      const firstRow = await page.locator('table.ut-list tr').first().innerText();
+      console.log(`[tsukuba] 1行目: ${firstRow.slice(0, 200)}`);
+    }
 
     let pageNum = 1;
     while (true) {
@@ -45,31 +56,27 @@ export async function scrapeAll(fetcher, year = 2025) {
       allCourses.push(...courses);
       console.log(`[tsukuba] page=${pageNum} +${courses.length} (計${allCourses.length})`);
 
-      // 次ページリンク
-      const nextLink = page.locator('a:has-text("次"), a:has-text("次へ"), a[title*="次"], .ut-pager-next a').first();
+      const nextLink = page.locator('a:has-text("次"), a:has-text("次へ"), .next a, [class*="next"] a').first();
       if (await nextLink.count() === 0) break;
       await nextLink.click();
       await page.waitForLoadState('networkidle', { timeout: 20000 });
       pageNum++;
       if (pageNum > 200) break;
     }
-
-    console.log(`[tsukuba] 合計 ${allCourses.length}科目`);
-    return allCourses;
   });
+
+  console.log(`[tsukuba] 合計 ${allCourses.length}科目`);
+  return allCourses;
 }
 
 function parseTable(html, year) {
   const $ = cheerio.load(html);
   const courses = [];
 
-  // ut-list テーブルのデータ行（ヘッダー行を除く）
   $('table.ut-list tr').each((_, tr) => {
     const cells = $(tr).find('td');
-    if (cells.length < 4) return; // th行はスキップ
+    if (cells.length < 4) return;
 
-    // KdB列順確認が必要だが一般的には:
-    // 科目番号 | 科目名 | 単位 | 標準年次 | 実施学期 | 曜時限 | 教室 | 担当教員
     const name = $(cells[1]).text().trim();
     const credits = parseInt($(cells[2]).text().trim()) || 0;
     const semRaw = $(cells[4]).text().trim();
@@ -78,7 +85,6 @@ function parseTable(html, year) {
     const instructor = $(cells[7]).text().trim() || '';
 
     if (!name || name.length < 2) return;
-
     const { dayOfWeek, period } = parseDayPeriod(dayPeriodRaw);
     if (!dayOfWeek || !period) return;
 
