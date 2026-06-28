@@ -1,9 +1,13 @@
 /**
- * 筑波大学 KdB
- * form#ut-SB0070-form を JS経由でsubmit → table.ut-list をパース
+ * 筑波大学 KdB — CSV/Excelダウンロード方式
+ *
+ * KdBは重いSPAでデータ行が動的描画されるため、HTMLパースは不安定。
+ * 「科目一覧ダウンロード」(#btnListDownload)で全科目を構造化ファイルとして取得する。
+ *
+ * 列順(確認済み): 科目番号|科目名|授業方法|単位|年次|学期|曜時限|担当|概要|備考|科目等履修生
  */
-import * as cheerio from 'cheerio';
-import { mkdir } from 'fs/promises';
+import * as XLSX from 'xlsx';
+import { readFile } from 'fs/promises';
 import { withPage } from '../lib/browser.js';
 import { buildLectureId, buildSlotKey, normalizeSubject, normalizeInstructor } from '../lib/lecture_id.js';
 
@@ -12,73 +16,71 @@ const TOP_URL = 'https://kdb.tsukuba.ac.jp/';
 
 export async function scrapeAll(fetcher, year = 2025) {
   console.log(`[tsukuba] 開始 year=${year}`);
-  const allCourses = [];
 
-  await withPage(async (page) => {
+  return withPage(async (page) => {
     await page.goto(TOP_URL, { waitUntil: 'networkidle', timeout: 30000 });
 
-    // 検索ボタン(#btnSearch)をクリック → JSの検索ハンドラが発火する
-    // form.submit()ではonclickハンドラが走らないため0件になる
-    await page.locator('#btnSearch').click();
-
-    // 検索結果(ut-listに行)が描画されるまで待つ
-    await page.waitForSelector('table.ut-list tr td', { timeout: 30000 }).catch(() => {});
+    // 検索を実行して結果を母集合にする（ダウンロードは検索結果対象のことが多い）
+    await page.locator('#btnSearch').click().catch(() => {});
     await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
+    await page.waitForTimeout(2000);
 
-    // スクリーンショット
-    if (process.env.PLAYWRIGHT_SCREENSHOT === '1') {
-      await mkdir('/tmp/scraper-screenshots', { recursive: true }).catch(() => {});
-      await page.screenshot({ path: '/tmp/scraper-screenshots/tsukuba_after_search.png', fullPage: false });
+    // ダウンロードを待ち受けて「科目一覧ダウンロード」をクリック
+    let filePath = null;
+    try {
+      const [download] = await Promise.all([
+        page.waitForEvent('download', { timeout: 60000 }),
+        page.locator('#btnListDownload').click(),
+      ]);
+      filePath = await download.path();
+      const suggested = download.suggestedFilename();
+      console.log(`[tsukuba] ダウンロード成功: ${suggested}`);
+    } catch (e) {
+      console.warn(`[tsukuba] ダウンロード失敗: ${e.message}`);
+      return [];
     }
 
-    // 結果確認
-    const rowCount = await page.locator('table.ut-list tr').count();
-    console.log(`[tsukuba] 検索後 行数: ${rowCount}`);
+    if (!filePath) return [];
 
-    // 最初の行の内容をログ
-    if (rowCount > 0) {
-      const firstRow = await page.locator('table.ut-list tr').first().innerText();
-      console.log(`[tsukuba] 1行目: ${firstRow.slice(0, 200)}`);
+    // ファイルをパース（CSV/Excel自動判定）
+    const rows = await parseFile(filePath);
+    console.log(`[tsukuba] ファイル行数: ${rows.length}`);
+    if (rows.length > 0) {
+      console.log(`[tsukuba] ヘッダー: ${JSON.stringify(rows[0]).slice(0, 300)}`);
     }
 
-    let pageNum = 1;
-    while (true) {
-      const html = await page.content();
-      const courses = parseTable(html, year);
-      allCourses.push(...courses);
-      console.log(`[tsukuba] page=${pageNum} +${courses.length} (計${allCourses.length})`);
-
-      const nextLink = page.locator('a:has-text("次"), a:has-text("次へ"), .next a, [class*="next"] a').first();
-      if (await nextLink.count() === 0) break;
-      await nextLink.click();
-      await page.waitForLoadState('networkidle', { timeout: 20000 });
-      pageNum++;
-      if (pageNum > 200) break;
-    }
+    const courses = mapRows(rows, year);
+    console.log(`[tsukuba] 有効科目: ${courses.length}`);
+    return courses;
   });
-
-  console.log(`[tsukuba] 合計 ${allCourses.length}科目`);
-  return allCourses;
 }
 
-function parseTable(html, year) {
-  const $ = cheerio.load(html);
+async function parseFile(filePath) {
+  // xlsxはCSVもExcelも読める
+  const buf = await readFile(filePath);
+  const wb = XLSX.read(buf, { type: 'buffer', codepage: 932 }); // Shift-JIS対応
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+}
+
+function mapRows(rows, year) {
   const courses = [];
+  // 1行目はヘッダーなのでスキップ
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!Array.isArray(r) || r.length < 8) continue;
 
-  $('table.ut-list tr').each((_, tr) => {
-    const cells = $(tr).find('td');
-    if (cells.length < 4) return;
+    // 列順: 0科目番号 1科目名 2授業方法 3単位 4年次 5学期 6曜時限 7担当
+    const name = `${r[1] ?? ''}`.trim();
+    const credits = parseFloat(`${r[3] ?? ''}`) || 0;
+    const semRaw = `${r[5] ?? ''}`.trim();
+    const dayPeriodRaw = `${r[6] ?? ''}`.trim();
+    const instructor = `${r[7] ?? ''}`.trim();
 
-    const name = $(cells[1]).text().trim();
-    const credits = parseInt($(cells[2]).text().trim()) || 0;
-    const semRaw = $(cells[4]).text().trim();
-    const dayPeriodRaw = $(cells[5]).text().trim();
-    const room = $(cells[6]).text().trim() || '';
-    const instructor = $(cells[7]).text().trim() || '';
+    if (!name || name.length < 2) continue;
 
-    if (!name || name.length < 2) return;
     const { dayOfWeek, period } = parseDayPeriod(dayPeriodRaw);
-    if (!dayOfWeek || !period) return;
+    if (!dayOfWeek || !period) continue;
 
     const slotKey = buildSlotKey({ universityName: UNIVERSITY_NAME, dayJa: dayOfWeek, period, subject: name });
     const lectureId = buildLectureId({ universityName: UNIVERSITY_NAME, dayJa: dayOfWeek, period, subject: name });
@@ -91,26 +93,27 @@ function parseTable(html, year) {
       semester: normalizeSemester(semRaw),
       name, nameNorm: normalizeSubject(name),
       dayOfWeek, period, periodEnd: period,
-      room, instructor, instructorNorm: normalizeInstructor(instructor),
+      room: '', instructor, instructorNorm: normalizeInstructor(instructor),
       faculty: '', credits, description: '', textbooks: [],
       slotKey, lectureId, lectureIdWithInstructor,
       cmsType: 'kdb_tsukuba', sourceUrl: TOP_URL,
     });
-  });
+  }
   return courses;
 }
 
 function parseDayPeriod(raw) {
+  // "春AB 月1,2" や "秋C 火3" など。曜日と最初の時限を取る
   const dayMap = { '月':'月曜日','火':'火曜日','水':'水曜日','木':'木曜日','金':'金曜日','土':'土曜日','日':'日曜日' };
-  const m = raw.match(/([月火水木金土日])/);
-  const p = raw.match(/(\d)/);
-  if (!m || !p) return {};
-  return { dayOfWeek: dayMap[m[1]] ?? null, period: parseInt(p[1]) };
+  const m = raw.match(/([月火水木金土日])\s*([0-9０-９]+)/);
+  if (!m) return {};
+  const period = parseInt(m[2].replace(/[０-９]/g, d => '０１２３４５６７８９'.indexOf(d)));
+  return { dayOfWeek: dayMap[m[1]] ?? null, period: period || null };
 }
 
 function normalizeSemester(raw) {
   if (!raw) return 'unknown';
-  if (raw.includes('春') || raw.includes('1')) return 'spring';
-  if (raw.includes('秋') || raw.includes('2')) return 'fall';
+  if (raw.includes('春')) return 'spring';
+  if (raw.includes('秋')) return 'fall';
   return 'unknown';
 }
