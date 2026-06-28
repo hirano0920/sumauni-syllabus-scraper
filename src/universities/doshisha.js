@@ -152,16 +152,15 @@ async function scrapeFaculty(page, year, faculty, seen) {
 
 function parseRow($, tr, faculty, year) {
   const cells = $(tr).find('td');
-  if (cells.length < 4) return null;
+  if (cells.length < 6) return null;
 
-  // 列順は初回実行時のデバッグログで確定する
-  // 典型的な同志社形式: 科目名|担当教員|学期|曜日時限|教室|単位
-  const name = $(cells[0]).text().trim();
-  const instructor = $(cells[1]).text().trim();
-  const semRaw = $(cells[2]).text().trim();
-  const dayPeriodRaw = $(cells[3]).text().trim();
-  const room = $(cells[4])?.text().trim() || '';
-  const credits = parseInt($(cells[5])?.text().trim()) || 0;
+  // 確認済み列順: [0]科目コード [1]区分 [2]科目名 [3]担当教員 [4]キャンパス [5]単位 [6]曜日時限 [7]教室
+  const name = $(cells[2]).text().trim().replace(/^[○◎△×＊※]\s*/, ''); // 先頭記号除去
+  const instructor = $(cells[3]).text().trim();
+  const semRaw = ''; // 同志社の一覧には学期列がない
+  const dayPeriodRaw = $(cells[6])?.text().trim() || '';
+  const room = $(cells[7])?.text().trim() || '';
+  const credits = parseInt(($(cells[5])?.text() || '').replace(/[^0-9]/g, '')) || 0;
 
   if (!name || name.length < 2) return null;
 
