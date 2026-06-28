@@ -1,0 +1,26 @@
+{
+  "name": "sumauni-syllabus-scraper",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "scrape": "node src/index.js",
+    "scrape:livecampus": "node src/index.js --cms=livecampus",
+    "scrape:campusplan": "node src/index.js --cms=campusplan",
+    "scrape:gakuen": "node src/index.js --cms=gakuen",
+    "scrape:custom": "node src/index.js --cms=custom",
+    "scrape:university": "node src/index.js --university"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "axios-retry": "^4.5.0",
+    "cheerio": "^1.0.0",
+    "firebase-admin": "^12.3.0",
+    "p-limit": "^6.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
