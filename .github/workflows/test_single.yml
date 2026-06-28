@@ -21,7 +21,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm install
+      - name: Install deps
+        run: npm install
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
       - name: DRY RUN (Firestoreに書かない)
         run: node src/index.js --cms=${{ github.event.inputs.cms }} --university="${{ github.event.inputs.university }}"
         env:
