@@ -17,6 +17,7 @@ import { initFirestore, writeCourses, writeRoomIndex } from './lib/firestore.js'
 import { parseCourseListPage as lcListParser, parseCourseDetailPage as lcDetailParser } from './universities/livecampus.js';
 import { parseCourseListPage as cpListParser, parseCourseDetailPage as cpDetailParser } from './universities/campusplan.js';
 import { scrapeAll as scrapeTsukuba } from './universities/tsukuba.js';
+import { recon } from './lib/recon.js';
 import universities from '../config/universities.json' assert { type: 'json' };
 import pLimit from 'p-limit';
 
@@ -35,6 +36,23 @@ const UNIV_FILTER = args.university;
 async function main() {
   console.log(`== スマユニ シラバス スクレイパー ==`);
   console.log(`year=${YEAR}, cms=${CMS_FILTER ?? 'all'}, university=${UNIV_FILTER ?? 'all'}, dryRun=${DRY_RUN}`);
+
+  // --- 偵察モード: --recon で対象大学の構造だけ吐き出す（Firestore書き込みなし） ---
+  if (args.recon) {
+    const all = [
+      ...universities.livecampus, ...universities.campusplan,
+      ...universities.gakuen, ...universities.custom,
+    ];
+    const targets = UNIV_FILTER ? all.filter(u => u.name === UNIV_FILTER) : all;
+    if (targets.length === 0) {
+      console.log(`[recon] 対象大学が見つかりません: ${UNIV_FILTER}`);
+      return;
+    }
+    for (const u of targets) {
+      await recon(u.name, u.syllabusBase);
+    }
+    return;
+  }
 
   if (!DRY_RUN) initFirestore();
 

@@ -1,0 +1,44 @@
+name: Recon (構造偵察)
+
+on:
+  workflow_dispatch:
+    inputs:
+      university:
+        description: '偵察する大学名 (例: 早稲田大学)'
+        required: true
+        default: '早稲田大学'
+
+jobs:
+  recon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ hashFiles('package.json') }}
+      - name: Install Playwright
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium --with-deps
+      - name: Install Playwright system deps
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: Recon
+        run: node src/index.js --recon --university="${{ github.event.inputs.university }}"
+        env:
+          PLAYWRIGHT_SCREENSHOT: '1'
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recon-screenshots
+          path: /tmp/scraper-screenshots/
+          if-no-files-found: ignore
+          retention-days: 2
