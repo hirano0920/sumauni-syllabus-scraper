@@ -61,70 +61,37 @@ export async function scrapeAll(fetcher, year = 2025) {
 
 async function scrapeFaculty(page, year, faculty, seen) {
   const courses = [];
+
+  // 検索ページに移動してフォームを送信（1回だけ）
+  await page.goto(SEARCH_URL, { waitUntil: 'networkidle', timeout: 30000 });
+
+  // 年度設定
+  await page.evaluate((y) => {
+    const sel = document.querySelector('select[name="select_bussinessyear"]');
+    if (!sel) return;
+    const opt = [...sel.options].find(o => o.value === String(y));
+    if (opt) sel.value = String(y);
+    else {
+      const vals = [...sel.options].map(o => parseInt(o.value)).filter(n => !isNaN(n));
+      sel.value = String(Math.max(...vals));
+    }
+  }, year);
+
+  if (faculty.code) {
+    await page.selectOption('select[name="subjectcd"]', faculty.code).catch(() => {});
+  }
+
+  await Promise.all([
+    page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }),
+    page.locator('input[value="検索/Search"]').click(),
+  ]);
+
+  // 結果ページをページネーションで巡回
   let pageNum = 1;
-
   while (true) {
-    // フォームを選択してsubmit (毎ページ検索ページに戻る)
-    await page.goto(SEARCH_URL, { waitUntil: 'networkidle', timeout: 30000 });
-
-    // 最初の学部のみ: 年度の実際のoption一覧をログ出力
-    if (pageNum === 1 && faculty.name === '神学部') {
-      const yearOptions = await page.evaluate(() =>
-        [...document.querySelectorAll('select[name="select_bussinessyear"] option')]
-          .map(o => o.value).slice(-6)
-      );
-      console.log(`[doshisha] 年度options末尾: ${yearOptions.join(', ')}`);
-    }
-
-    // 年度セレクト (2025が存在しない場合は最新年度を使う)
-    const yearSet = await page.evaluate((y) => {
-      const sel = document.querySelector('select[name="select_bussinessyear"]');
-      if (!sel) return false;
-      const opt = [...sel.options].find(o => o.value === String(y));
-      if (opt) { sel.value = String(y); return true; }
-      // なければ最大値(最新年度)を選ぶ
-      const values = [...sel.options].map(o => parseInt(o.value)).filter(n => !isNaN(n));
-      sel.value = String(Math.max(...values));
-      return `fallback:${sel.value}`;
-    }, year);
-    console.log(`[doshisha] ${faculty.name} 年度設定: ${yearSet}`);
-
-    if (faculty.code) {
-      await page.selectOption('select[name="subjectcd"]', faculty.code).catch(() => {});
-    }
-
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }),
-      page.locator('input[value="検索/Search"]').click(),
-    ]);
-
-    // 2ページ目以降: 検索後のページでページネーションリンクをクリック
-    if (pageNum > 1) {
-      const nextLink = page.locator(`a:has-text("${pageNum}"), a[href*="page=${pageNum}"]`).first();
-      if (await nextLink.count() === 0) break;
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: 'networkidle', timeout: 20000 }),
-        nextLink.click(),
-      ]);
-    }
-
     const html = await page.content();
     const $ = cheerio.load(html);
 
-    // デバッグ: 最初の学部・1ページ目のみ
-    if (pageNum === 1 && faculty.name === '神学部') {
-      const allTables = $('table').map((_, t) =>
-        `class="${$(t).attr('class')}" rows=${$(t).find('tr').length}`).get();
-      console.log(`[doshisha] テーブル:\n${allTables.join('\n') || '(なし)'}`);
-      // result__tableの最初のtd行の各列をダンプ
-      const firstTdRow = $('table.result__table tr').filter((_, tr) => $(tr).find('td').length > 0).first();
-      console.log(`[doshisha] td数: ${firstTdRow.find('td').length}`);
-      firstTdRow.find('td').each((i, td) => {
-        console.log(`[doshisha] col[${i}]: ${$(td).text().trim().replace(/\s+/g,' ').slice(0, 40)}`);
-      });
-    }
-
-    // 同志社: result__table、tdが1つ以上ある行を対象
     const rows = $('table.result__table tr')
       .filter((_, tr) => $(tr).find('td').length > 0);
 
@@ -140,11 +107,16 @@ async function scrapeFaculty(page, year, faculty, seen) {
 
     if (added === 0) break;
 
-    // 次ページ確認（ページリンクがあるか）
-    const hasNext = $(`a:contains("${pageNum + 1}")`).length > 0;
-    if (!hasNext) break;
+    // 次ページリンクを探してクリック（検索結果ページ内でページ移動）
+    const nextLink = page.locator('a:has-text("次"), a:has-text("Next"), a[class*="next"]').first();
+    if (await nextLink.count() === 0) break;
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }),
+      nextLink.click(),
+    ]).catch(() => {});
     pageNum++;
     if (pageNum > 100) break;
+    await page.waitForTimeout(500);
   }
 
   return courses;
