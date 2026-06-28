@@ -21,13 +21,41 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+
       - name: Install deps
         run: npm install
+
+      # Playwrightブラウザをキャッシュ (2回目以降は2秒で完了)
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ hashFiles('package.json') }}
+
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium --with-deps
+
+      - name: Install Playwright system deps only
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # デバッグ: スクリーンショット保存
       - name: DRY RUN (Firestoreに書かない)
         run: node src/index.js --cms=${{ github.event.inputs.cms }} --university="${{ github.event.inputs.university }}"
         env:
           FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
           SCRAPE_YEAR: '2025'
           DRY_RUN: '1'
+          PLAYWRIGHT_SCREENSHOT: '1'
+
+      # スクリーンショットをArtifactとして保存
+      - name: Upload screenshots (デバッグ用)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: /tmp/scraper-screenshots/
+          if-no-files-found: ignore
+          retention-days: 1

@@ -1,10 +1,8 @@
-/**
- * Playwrightブラウザ管理。
- * JavaScriptレンダリング必須のシラバスシステム向け。
- */
 import { chromium } from 'playwright';
+import { mkdir } from 'fs/promises';
 
 let _browser = null;
+const SCREENSHOT_DIR = '/tmp/scraper-screenshots';
 
 export async function getBrowser() {
   if (!_browser) {
@@ -17,17 +15,13 @@ export async function getBrowser() {
 }
 
 export async function closeBrowser() {
-  if (_browser) {
-    await _browser.close();
-    _browser = null;
-  }
+  if (_browser) { await _browser.close(); _browser = null; }
 }
 
-/** 新しいページを開いてコンテンツ取得後に閉じる */
 export async function withPage(fn) {
   const browser = await getBrowser();
   const context = await browser.newContext({
-    userAgent: 'SmartUni-SyllabusBot/1.0 (contact: info@sumauni.app; educational use)',
+    userAgent: 'Mozilla/5.0 (compatible; SmartUni-Bot/1.0)',
     locale: 'ja-JP',
   });
   const page = await context.newPage();
@@ -38,10 +32,19 @@ export async function withPage(fn) {
   }
 }
 
-/** ページを開いてHTMLを返す */
-export async function fetchRenderedHtml(url, { waitFor = 'networkidle', timeout = 30000 } = {}) {
+/** ページを開いてHTMLとスクリーンショットを返す */
+export async function fetchPage(url, label = 'page', { waitFor = 'networkidle', timeout = 30000 } = {}) {
   return withPage(async (page) => {
     await page.goto(url, { waitUntil: waitFor, timeout });
+
+    // デバッグ用スクリーンショット
+    if (process.env.PLAYWRIGHT_SCREENSHOT === '1') {
+      await mkdir(SCREENSHOT_DIR, { recursive: true });
+      const safe = label.replace(/[^a-zA-Z0-9　-鿿]/g, '_').slice(0, 50);
+      await page.screenshot({ path: `${SCREENSHOT_DIR}/${safe}.png`, fullPage: true });
+      console.log(`  [screenshot] ${safe}.png`);
+    }
+
     return page.content();
   });
 }
