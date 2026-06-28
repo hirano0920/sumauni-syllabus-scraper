@@ -1,278 +1,71 @@
 {
   "livecampus": [
-    {
-      "name": "早稲田大学",
-      "syllabusBase": "https://www.wsl.waseda.jp/syllabus/",
-      "year": 2025,
-      "note": "LiveCampus — 年度・学部コードをURLパラメータで指定"
-    },
-    {
-      "name": "立教大学",
-      "syllabusBase": "https://syllabus.rikkyo.ac.jp/",
-      "year": 2025,
-      "note": "LiveCampus"
-    },
-    {
-      "name": "法政大学",
-      "syllabusBase": "https://syllabus.hosei.ac.jp/",
-      "year": 2025,
-      "note": "LiveCampus"
-    },
-    {
-      "name": "日本大学",
-      "syllabusBase": "https://syllabus.nihon-u.ac.jp/",
-      "year": 2025,
-      "note": "LiveCampus"
-    },
-    {
-      "name": "東洋大学",
-      "syllabusBase": "https://syllabus.toyo.ac.jp/",
-      "year": 2025,
-      "note": "LiveCampus"
-    },
-    {
-      "name": "専修大学",
-      "syllabusBase": "https://syllabus.senshu-u.ac.jp/",
-      "year": 2025,
-      "note": "LiveCampus"
-    },
-    {
-      "name": "駒澤大学",
-      "syllabusBase": "https://syllabus.komazawa-u.ac.jp/",
-      "year": 2025,
-      "note": "LiveCampus"
-    },
-    {
-      "name": "中央大学",
-      "syllabusBase": "https://syllabus.chuo-u.ac.jp/",
-      "year": 2025,
-      "note": "LiveCampus"
-    },
-    {
-      "name": "明治大学",
-      "syllabusBase": "https://www.meiji.ac.jp/koho/syllabus/",
-      "year": 2025,
-      "note": "LiveCampus"
-    },
-    {
-      "name": "青山学院大学",
-      "syllabusBase": "https://kyomu.aoyama.ac.jp/",
-      "year": 2025,
-      "note": "LiveCampus"
-    },
-    {
-      "name": "成蹊大学",
-      "syllabusBase": "https://syllabus.seikei.ac.jp/",
-      "year": 2025,
-      "note": "LiveCampus"
-    },
-    {
-      "name": "武蔵大学",
-      "syllabusBase": "https://syllabus.musashi.ac.jp/",
-      "year": 2025,
-      "note": "LiveCampus"
-    },
-    {
-      "name": "東海大学",
-      "syllabusBase": "https://syllabus.tokai.ac.jp/",
-      "year": 2025,
-      "note": "LiveCampus"
-    }
+    { "name": "早稲田大学",     "syllabusBase": "https://www.wsl.waseda.jp/syllabus/",        "year": 2025, "note": "LiveCampus" },
+    { "name": "立教大学",       "syllabusBase": "https://syllabus.rikkyo.ac.jp/",              "year": 2025, "note": "LiveCampus" },
+    { "name": "法政大学",       "syllabusBase": "https://syllabus.hosei.ac.jp/",               "year": 2025, "note": "LiveCampus" },
+    { "name": "日本大学",       "syllabusBase": "https://syllabus.nihon-u.ac.jp/",             "year": 2025, "note": "LiveCampus" },
+    { "name": "東洋大学",       "syllabusBase": "https://syllabus.toyo.ac.jp/",                "year": 2025, "note": "LiveCampus" },
+    { "name": "専修大学",       "syllabusBase": "https://syllabus.senshu-u.ac.jp/",            "year": 2025, "note": "LiveCampus" },
+    { "name": "駒澤大学",       "syllabusBase": "https://syllabus.komazawa-u.ac.jp/",          "year": 2025, "note": "LiveCampus" },
+    { "name": "中央大学",       "syllabusBase": "https://syllabus.chuo-u.ac.jp/",              "year": 2025, "note": "LiveCampus" },
+    { "name": "明治大学",       "syllabusBase": "https://www.meiji.ac.jp/koho/syllabus/",      "year": 2025, "note": "LiveCampus" },
+    { "name": "青山学院大学",   "syllabusBase": "https://kyomu.aoyama.ac.jp/",                 "year": 2025, "note": "LiveCampus" },
+    { "name": "成蹊大学",       "syllabusBase": "https://syllabus.seikei.ac.jp/",              "year": 2025, "note": "LiveCampus" },
+    { "name": "武蔵大学",       "syllabusBase": "https://syllabus.musashi.ac.jp/",             "year": 2025, "note": "LiveCampus" },
+    { "name": "東海大学",       "syllabusBase": "https://syllabus.tokai.ac.jp/",               "year": 2025, "note": "LiveCampus" },
+    { "name": "芝浦工業大学",   "syllabusBase": "https://syllabus.shibaura-it.ac.jp/",         "year": 2025, "note": "LiveCampus — 4工大" },
+    { "name": "工学院大学",     "syllabusBase": "https://syllabus.kogakuin.ac.jp/",            "year": 2025, "note": "LiveCampus — 4工大" },
+    { "name": "東京電機大学",   "syllabusBase": "https://syllabus.dendai.ac.jp/",              "year": 2025, "note": "LiveCampus — 4工大" },
+    { "name": "東京都市大学",   "syllabusBase": "https://syllabus.tcu.ac.jp/",                 "year": 2025, "note": "LiveCampus — 4工大" }
   ],
   "campusplan": [
-    {
-      "name": "立命館大学",
-      "syllabusBase": "https://syllabus.ritsumei.ac.jp/",
-      "year": 2025,
-      "note": "CampusPlan (SI社)"
-    },
-    {
-      "name": "関西大学",
-      "syllabusBase": "https://kandai.instructure.com/",
-      "year": 2025,
-      "note": "Canvas LMS ベース、別途確認要"
-    },
-    {
-      "name": "関西学院大学",
-      "syllabusBase": "https://syllabus.kwansei.ac.jp/",
-      "year": 2025,
-      "note": "CampusPlan"
-    },
-    {
-      "name": "同志社大学",
-      "syllabusBase": "https://syllabus.doshisha.ac.jp/",
-      "year": 2025,
-      "note": "CampusPlan"
-    },
-    {
-      "name": "近畿大学",
-      "syllabusBase": "https://syllabus.kindai.ac.jp/",
-      "year": 2025,
-      "note": "CampusPlan"
-    },
-    {
-      "name": "龍谷大学",
-      "syllabusBase": "https://syllabus.ryukoku.ac.jp/",
-      "year": 2025,
-      "note": "CampusPlan"
-    },
-    {
-      "name": "甲南大学",
-      "syllabusBase": "https://syllabus.konan-u.ac.jp/",
-      "year": 2025,
-      "note": "CampusPlan"
-    },
-    {
-      "name": "京都産業大学",
-      "syllabusBase": "https://syllabus.kyoto-su.ac.jp/",
-      "year": 2025,
-      "note": "CampusPlan"
-    }
+    { "name": "立命館大学",     "syllabusBase": "https://syllabus.ritsumei.ac.jp/",            "year": 2025, "note": "CampusPlan" },
+    { "name": "関西大学",       "syllabusBase": "https://kandai.instructure.com/",             "year": 2025, "note": "Canvas LMS、別途確認要" },
+    { "name": "関西学院大学",   "syllabusBase": "https://syllabus.kwansei.ac.jp/",             "year": 2025, "note": "CampusPlan" },
+    { "name": "同志社大学",     "syllabusBase": "https://syllabus.doshisha.ac.jp/",            "year": 2025, "note": "CampusPlan" },
+    { "name": "近畿大学",       "syllabusBase": "https://syllabus.kindai.ac.jp/",              "year": 2025, "note": "CampusPlan" },
+    { "name": "龍谷大学",       "syllabusBase": "https://syllabus.ryukoku.ac.jp/",             "year": 2025, "note": "CampusPlan" },
+    { "name": "甲南大学",       "syllabusBase": "https://syllabus.konan-u.ac.jp/",             "year": 2025, "note": "CampusPlan" },
+    { "name": "京都産業大学",   "syllabusBase": "https://syllabus.kyoto-su.ac.jp/",            "year": 2025, "note": "CampusPlan" }
   ],
   "gakuen": [
-    {
-      "name": "成城大学",
-      "syllabusBase": "https://syllabus.seijo.ac.jp/",
-      "year": 2025,
-      "note": "学園シリーズ (日本総合システム)"
-    },
-    {
-      "name": "明治学院大学",
-      "syllabusBase": "https://syllabus.meijigakuin.ac.jp/",
-      "year": 2025,
-      "note": "学園シリーズ"
-    },
-    {
-      "name": "獨協大学",
-      "syllabusBase": "https://syllabus.dokkyo.ac.jp/",
-      "year": 2025,
-      "note": "学園シリーズ"
-    },
-    {
-      "name": "國學院大學",
-      "syllabusBase": "https://syllabus.kokugakuin.ac.jp/",
-      "year": 2025,
-      "note": "学園シリーズ"
-    },
-    {
-      "name": "武蔵野大学",
-      "syllabusBase": "https://syllabus.musashino-u.ac.jp/",
-      "year": 2025,
-      "note": "学園シリーズ"
-    }
+    { "name": "成城大学",       "syllabusBase": "https://syllabus.seijo.ac.jp/",               "year": 2025, "note": "学園シリーズ" },
+    { "name": "明治学院大学",   "syllabusBase": "https://syllabus.meijigakuin.ac.jp/",         "year": 2025, "note": "学園シリーズ" },
+    { "name": "獨協大学",       "syllabusBase": "https://syllabus.dokkyo.ac.jp/",              "year": 2025, "note": "学園シリーズ" },
+    { "name": "國學院大學",     "syllabusBase": "https://syllabus.kokugakuin.ac.jp/",          "year": 2025, "note": "学園シリーズ" },
+    { "name": "武蔵野大学",     "syllabusBase": "https://syllabus.musashino-u.ac.jp/",         "year": 2025, "note": "学園シリーズ" }
   ],
   "custom": [
-    {
-      "name": "東京大学",
-      "syllabusBase": "https://catalog.he.u-tokyo.ac.jp/",
-      "year": 2025,
-      "scraper": "todai",
-      "note": "UTAS — 独自システム。課程・学科コードで全科目走査"
-    },
-    {
-      "name": "京都大学",
-      "syllabusBase": "https://www.k.kyoto-u.ac.jp/syllabus/",
-      "year": 2025,
-      "scraper": "kyodai",
-      "note": "KULASISベース独自"
-    },
-    {
-      "name": "慶應義塾大学",
-      "syllabusBase": "https://syllabus.keio.ac.jp/",
-      "year": 2025,
-      "scraper": "keio",
-      "note": "独自システム"
-    },
-    {
-      "name": "上智大学",
-      "syllabusBase": "https://syllabus.sophia.ac.jp/",
-      "year": 2025,
-      "scraper": "sophia",
-      "note": "独自"
-    },
-    {
-      "name": "東京理科大学",
-      "syllabusBase": "https://syllabus.tus.ac.jp/",
-      "year": 2025,
-      "scraper": "tus",
-      "note": "独自"
-    },
-    {
-      "name": "国際基督教大学",
-      "syllabusBase": "https://syllabus.icu.ac.jp/",
-      "year": 2025,
-      "scraper": "icu",
-      "note": "独自"
-    },
-    {
-      "name": "一橋大学",
-      "syllabusBase": "https://syllabus.hit-u.ac.jp/",
-      "year": 2025,
-      "scraper": "hitotsubashi",
-      "note": "独自"
-    },
-    {
-      "name": "東京科学大学",
-      "syllabusBase": "https://www.ocw.titech.ac.jp/",
-      "year": 2025,
-      "scraper": "tus_tech",
-      "note": "旧東工大。T2SCHOLAベース"
-    },
-    {
-      "name": "筑波大学",
-      "syllabusBase": "https://kdb.tsukuba.ac.jp/",
-      "year": 2025,
-      "scraper": "tsukuba",
-      "note": "KdB — 科目番号連番で全走査可能"
-    },
-    {
-      "name": "北海道大学",
-      "syllabusBase": "https://educate.hokudai.ac.jp/",
-      "year": 2025,
-      "scraper": "hokudai",
-      "note": "独自"
-    },
-    {
-      "name": "東北大学",
-      "syllabusBase": "https://syllabus.tohoku.ac.jp/",
-      "year": 2025,
-      "scraper": "tohoku",
-      "note": "独自"
-    },
-    {
-      "name": "名古屋大学",
-      "syllabusBase": "https://syllabus.nagoya-u.ac.jp/",
-      "year": 2025,
-      "scraper": "nagoya",
-      "note": "独自"
-    },
-    {
-      "name": "大阪大学",
-      "syllabusBase": "https://koan.osaka-u.ac.jp/syllabus_ex/",
-      "year": 2025,
-      "scraper": "handai",
-      "note": "KOAN"
-    },
-    {
-      "name": "九州大学",
-      "syllabusBase": "https://syllabus.kyushu-u.ac.jp/",
-      "year": 2025,
-      "scraper": "kyudai",
-      "note": "独自"
-    },
-    {
-      "name": "神戸大学",
-      "syllabusBase": "https://www.ofc.kobe-u.ac.jp/sylabus/",
-      "year": 2025,
-      "scraper": "kobedai",
-      "note": "独自"
-    },
-    {
-      "name": "学習院大学",
-      "syllabusBase": "https://www.gakushuin.ac.jp/univ/syllabus/",
-      "year": 2025,
-      "scraper": "gakushuin",
-      "note": "独自"
-    }
+    { "name": "東京大学",         "syllabusBase": "https://catalog.he.u-tokyo.ac.jp/",          "year": 2025, "scraper": "todai",        "note": "UTAS" },
+    { "name": "京都大学",         "syllabusBase": "https://www.k.kyoto-u.ac.jp/syllabus/",       "year": 2025, "scraper": "kyodai",       "note": "KULASIS" },
+    { "name": "慶應義塾大学",     "syllabusBase": "https://syllabus.keio.ac.jp/",                "year": 2025, "scraper": "keio",         "note": "独自" },
+    { "name": "上智大学",         "syllabusBase": "https://syllabus.sophia.ac.jp/",              "year": 2025, "scraper": "sophia",       "note": "独自" },
+    { "name": "東京理科大学",     "syllabusBase": "https://syllabus.tus.ac.jp/",                 "year": 2025, "scraper": "tus",          "note": "独自" },
+    { "name": "国際基督教大学",   "syllabusBase": "https://syllabus.icu.ac.jp/",                 "year": 2025, "scraper": "icu",          "note": "独自" },
+    { "name": "一橋大学",         "syllabusBase": "https://syllabus.hit-u.ac.jp/",               "year": 2025, "scraper": "hitotsubashi", "note": "独自" },
+    { "name": "東京科学大学",     "syllabusBase": "https://www.ocw.titech.ac.jp/",               "year": 2025, "scraper": "titech",       "note": "旧東工大 T2SCHOLA" },
+    { "name": "筑波大学",         "syllabusBase": "https://kdb.tsukuba.ac.jp/",                  "year": 2025, "scraper": "tsukuba",      "note": "KdB API" },
+    { "name": "お茶の水女子大学", "syllabusBase": "https://syllabus.cf.ocha.ac.jp/",             "year": 2025, "scraper": "ochanomizu",   "note": "独自 — TOCKY" },
+    { "name": "千葉大学",         "syllabusBase": "https://syllabus.gs.chiba-u.jp/",             "year": 2025, "scraper": "chiba",        "note": "独自 — TOCKY / 金岡千広" },
+    { "name": "横浜国立大学",     "syllabusBase": "https://www.ynu.ac.jp/study/syllabus/",       "year": 2025, "scraper": "ynu",          "note": "独自 — TOCKY" },
+    { "name": "北海道大学",       "syllabusBase": "https://educate.hokudai.ac.jp/",              "year": 2025, "scraper": "hokudai",      "note": "独自" },
+    { "name": "東北大学",         "syllabusBase": "https://syllabus.tohoku.ac.jp/",              "year": 2025, "scraper": "tohoku",       "note": "独自" },
+    { "name": "名古屋大学",       "syllabusBase": "https://syllabus.nagoya-u.ac.jp/",            "year": 2025, "scraper": "nagoya",       "note": "独自" },
+    { "name": "大阪大学",         "syllabusBase": "https://koan.osaka-u.ac.jp/syllabus_ex/",     "year": 2025, "scraper": "handai",       "note": "KOAN" },
+    { "name": "九州大学",         "syllabusBase": "https://syllabus.kyushu-u.ac.jp/",            "year": 2025, "scraper": "kyudai",       "note": "独自" },
+    { "name": "神戸大学",         "syllabusBase": "https://www.ofc.kobe-u.ac.jp/sylabus/",       "year": 2025, "scraper": "kobedai",      "note": "独自" },
+    { "name": "学習院大学",       "syllabusBase": "https://www.gakushuin.ac.jp/univ/syllabus/",  "year": 2025, "scraper": "gakushuin",    "note": "独自" },
+    { "name": "金沢大学",         "syllabusBase": "https://risyu.kanazawa-u.ac.jp/",             "year": 2025, "scraper": "kanazawa",     "note": "独自 — 金岡千広" },
+    { "name": "岡山大学",         "syllabusBase": "https://syllabus.okayama-u.ac.jp/",           "year": 2025, "scraper": "okayama",      "note": "独自 — 金岡千広" },
+    { "name": "広島大学",         "syllabusBase": "https://momiji.hiroshima-u.ac.jp/",           "year": 2025, "scraper": "hiroshima",    "note": "もみじ — 金岡千広" },
+    { "name": "電気通信大学",     "syllabusBase": "https://syllabus.uec.ac.jp/",                 "year": 2025, "scraper": "uec",          "note": "独自 — 電農名織" },
+    { "name": "東京農工大学",     "syllabusBase": "https://syllabus.tuat.ac.jp/",                "year": 2025, "scraper": "tuat",         "note": "独自 — 電農名織" },
+    { "name": "名古屋工業大学",   "syllabusBase": "https://syllabus.nitech.ac.jp/",              "year": 2025, "scraper": "nitech",       "note": "独自 — 電農名織" },
+    { "name": "豊橋技術科学大学", "syllabusBase": "https://syllabus.tut.ac.jp/",                 "year": 2025, "scraper": "tut",          "note": "独自 — 電農名織" },
+    { "name": "埼玉大学",         "syllabusBase": "https://syllabus.saitama-u.ac.jp/",           "year": 2025, "scraper": "saitama",      "note": "独自 — 5S" },
+    { "name": "信州大学",         "syllabusBase": "https://gakujo.shinshu-u.ac.jp/",             "year": 2025, "scraper": "shinshu",      "note": "独自 — 5S" },
+    { "name": "静岡大学",         "syllabusBase": "https://syllabus.shizuoka.ac.jp/",            "year": 2025, "scraper": "shizuoka",     "note": "独自 — 5S" },
+    { "name": "滋賀大学",         "syllabusBase": "https://syllabus.shiga-u.ac.jp/",             "year": 2025, "scraper": "shiga",        "note": "独自 — 5S" },
+    { "name": "新潟大学",         "syllabusBase": "https://syllabus.niigata-u.ac.jp/",           "year": 2025, "scraper": "niigata",      "note": "独自 — 5S" }
   ]
 }
