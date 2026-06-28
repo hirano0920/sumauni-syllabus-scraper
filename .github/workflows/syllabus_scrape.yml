@@ -62,7 +62,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      - run: npm ci
+      - run: npm install
       - run: node src/index.js --cms=livecampus --university="${{ matrix.university }}"
         env:
           FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
@@ -97,7 +97,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      - run: npm ci
+      - run: npm install
       - run: node src/index.js --cms=campusplan --university="${{ matrix.university }}"
         env:
           FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
@@ -126,7 +126,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      - run: npm ci
+      - run: npm install
       - run: node src/index.js --cms=gakuen --university="${{ matrix.university }}"
         env:
           FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
@@ -195,7 +195,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      - run: npm ci
+      - run: npm install
       - run: node src/index.js --cms=custom --university="${{ matrix.university }}"
         env:
           FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
@@ -265,7 +265,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      - run: npm ci
+      - run: npm install
       - run: node src/index.js --cms=custom --university="${{ matrix.university }}"
         env:
           FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}

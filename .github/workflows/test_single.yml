@@ -1,0 +1,30 @@
+name: Test Single University (DRY RUN)
+
+on:
+  workflow_dispatch:
+    inputs:
+      university:
+        description: 'テストする大学名 (例: 筑波大学)'
+        required: true
+        default: '筑波大学'
+      cms:
+        description: 'CMS種別'
+        required: true
+        default: 'tsukuba'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - name: DRY RUN (Firestoreに書かない)
+        run: node src/index.js --cms=${{ github.event.inputs.cms }} --university="${{ github.event.inputs.university }}"
+        env:
+          FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
+          SCRAPE_YEAR: '2025'
+          DRY_RUN: '1'
