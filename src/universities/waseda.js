@@ -71,8 +71,17 @@ export async function scrapeAll(fetcher, year = 2025) {
               console.log(`[waseda] 最初のテーブル1行目: ${firstRow}`);
             }
 
-            // 確認済み: 早稲田結果テーブルは class="ct-vh"
-            const rows = $('table.ct-vh tbody tr');
+            // tbody なしの可能性があるため tr を直接取得
+            const rows = $('table.ct-vh tr').filter((_, tr) => $(tr).find('td').length > 0);
+
+            // デバッグ: 最初の行の内容と行数を確認
+            if (pageNum === 1 && faculty.code === '111973') {
+              console.log(`[waseda] td行数: ${rows.length}`);
+              rows.first().find('td').each((i, td) => {
+                console.log(`  [${i}] ${$(td).text().trim().slice(0, 30)}`);
+              });
+            }
+
             let added = 0;
             rows.each((_, tr) => {
               const course = parseRow($, tr, faculty.name, year);
