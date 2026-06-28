@@ -71,7 +71,8 @@ export async function scrapeAll(fetcher, year = 2025) {
               console.log(`[waseda] 最初のテーブル1行目: ${firstRow}`);
             }
 
-            const rows = $('table.ct-common tbody tr, table.ct-sirabasu tbody tr, table[class*="sirabasu"] tbody tr');
+            // 確認済み: 早稲田結果テーブルは class="ct-vh"
+            const rows = $('table.ct-vh tbody tr');
             let added = 0;
             rows.each((_, tr) => {
               const course = parseRow($, tr, faculty.name, year);
@@ -108,14 +109,16 @@ export async function scrapeAll(fetcher, year = 2025) {
 
 function parseRow($, tr, faculty, year) {
   const cells = $(tr).find('td');
-  if (cells.length < 5) return null;
+  if (cells.length < 7) return null;
 
-  const name = $(cells[1]).text().trim() || $(cells[0]).text().trim();
-  const instructor = $(cells[2]).text().trim();
-  const semRaw = $(cells[3]).text().trim();
-  const dayPeriodRaw = $(cells[4]).text().trim();
-  const room = $(cells[5])?.text().trim() || '';
-  const credits = parseInt($(cells[6])?.text().trim()) || 0;
+  // 確認済み列順: [0]年度 [1]コード [2]科目名 [3]担当教員 [4]開講学部 [5]学期 [6]曜日時限 [7]教室 [8]概要
+  const name = $(cells[2]).text().trim();
+  const instructor = $(cells[3]).text().trim();
+  const semRaw = $(cells[5]).text().trim();
+  const dayPeriodRaw = $(cells[6]).text().trim();
+  const room = $(cells[7])?.text().trim() || '';
+  const description = $(cells[8])?.text().trim() || '';
+  const credits = 0; // 早稲田一覧には単位列なし
 
   if (!name || name.length < 2) return null;
 
@@ -134,7 +137,7 @@ function parseRow($, tr, faculty, year) {
     name, nameNorm: normalizeSubject(name),
     dayOfWeek, period, periodEnd: period,
     room, instructor, instructorNorm: normalizeInstructor(instructor),
-    faculty, credits, description: '', textbooks: [],
+    faculty, credits, description, textbooks: [],
     slotKey, lectureId, lectureIdWithInstructor,
     cmsType: 'livecampus_waseda', sourceUrl: SEARCH_URL,
   };
