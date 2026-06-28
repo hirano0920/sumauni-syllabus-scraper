@@ -17,6 +17,7 @@ import { initFirestore, writeCourses, writeRoomIndex } from './lib/firestore.js'
 import { parseCourseListPage as lcListParser, parseCourseDetailPage as lcDetailParser } from './universities/livecampus.js';
 import { parseCourseListPage as cpListParser, parseCourseDetailPage as cpDetailParser } from './universities/campusplan.js';
 import { scrapeAll as scrapeTsukuba } from './universities/tsukuba.js';
+import { scrapeAll as scrapeWaseda } from './universities/waseda.js';
 import { recon } from './lib/recon.js';
 import universities from '../config/universities.json' assert { type: 'json' };
 import pLimit from 'p-limit';
@@ -59,16 +60,24 @@ async function main() {
   const fetcher = createFetcher({ intervalMs: 1200 });
   const results = { success: 0, failed: 0, total: 0 };
 
-  // --- 筑波 KdB (APIあり、最優先) ---
+  // --- 筑波 KdB ---
   if (!CMS_FILTER || CMS_FILTER === 'tsukuba') {
     if (!UNIV_FILTER || UNIV_FILTER === '筑波大学') {
       await runScraper('筑波大学', () => scrapeTsukuba(fetcher, YEAR), results);
     }
   }
 
-  // --- LiveCampus ---
+  // --- 早稲田 (LiveCampus専用) ---
+  if (!CMS_FILTER || CMS_FILTER === 'livecampus' || CMS_FILTER === 'waseda') {
+    if (!UNIV_FILTER || UNIV_FILTER === '早稲田大学') {
+      await runScraper('早稲田大学', () => scrapeWaseda(fetcher, YEAR), results);
+    }
+  }
+
+  // --- LiveCampus (その他) ---
   if (!CMS_FILTER || CMS_FILTER === 'livecampus') {
     for (const univ of universities.livecampus) {
+      if (univ.name === '早稲田大学') continue; // 上で処理済み
       if (UNIV_FILTER && univ.name !== UNIV_FILTER) continue;
       await runGenericScraper(univ, 'livecampus', fetcher, lcListParser, lcDetailParser, results);
     }
