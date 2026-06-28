@@ -20,7 +20,7 @@ on:
 
 env:
   NODE_VERSION: '20'
-  SCRAPE_YEAR: '2025'
+  SCRAPE_YEAR: '2026'
 
 jobs:
   # ---- LiveCampus (22校 並列) ----
