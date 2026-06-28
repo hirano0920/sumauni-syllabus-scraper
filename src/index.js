@@ -31,7 +31,7 @@ const args = Object.fromEntries(
 
 const YEAR = parseInt(process.env.SCRAPE_YEAR ?? new Date().getFullYear());
 const DRY_RUN = process.env.DRY_RUN === '1';
-const CMS_FILTER = args.cms;
+const CMS_FILTER = args.cms?.toLowerCase();
 const UNIV_FILTER = args.university;
 
 async function main() {
