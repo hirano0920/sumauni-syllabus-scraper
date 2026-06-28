@@ -153,10 +153,13 @@ function parseRow($, tr, faculty, year) {
 }
 
 const DAY_MAP = { '月':'月曜日','火':'火曜日','水':'水曜日','木':'木曜日','金':'金曜日','土':'土曜日' };
+// 全角数字→半角変換
+const z2h = s => s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
 
 function parseDayPeriod(raw) {
-  const m = raw.match(/([月火水木金土])/);
-  const p = raw.match(/(\d)/);
+  const normalized = z2h(raw);
+  const m = normalized.match(/([月火水木金土])/);
+  const p = normalized.match(/(\d)/);
   if (!m || !p) return {};
   return { dayOfWeek: DAY_MAP[m[1]] ?? null, period: parseInt(p[1]) || null };
 }
