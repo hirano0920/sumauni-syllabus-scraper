@@ -17,30 +17,21 @@ const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 
 const STRUCTURE_PROMPT = `
 あなたは大学シラバスサイトのHTML解析の専門家です。
-以下のHTMLから、シラバス一覧を取得するために必要な情報をJSON形式で返してください。
+以下のHTMLはシラバス検索の結果ページです。科目一覧を抽出するために必要な情報をJSONで返してください。
 
 返すべきJSON:
 {
-  "tableSelector": "結果テーブルのCSSセレクタ (例: table.result__table)",
-  "dataRowFilter": "データ行のフィルタ条件 (例: tr:has(td))",
+  "tableSelector": "科目一覧テーブルのCSSセレクタ。科目名・担当教員・曜日時限などが並ぶテーブルを探す (例: table.result__table, table.ct-vh)",
   "columns": {
-    "name": "科目名の列インデックス(0始まり)",
-    "instructor": "担当教員の列インデックス",
-    "dayPeriod": "曜日時限の列インデックス",
+    "name": "科目名の列インデックス(0始まり、ヘッダー行を除くtd)",
+    "instructor": "担当教員の列インデックス (-1=なし)",
+    "dayPeriod": "曜日時限が入る列インデックス。月3時限・火曜日2限のような値がある列",
     "room": "教室の列インデックス (-1=なし)",
-    "credits": "単位数の列インデックス (-1=なし)",
-    "semester": "学期の列インデックス (-1=なし)"
-  },
-  "form": {
-    "action": "フォームのaction URL",
-    "yearSelect": "年度セレクトのname属性",
-    "facultySelect": "学部セレクトのname属性 (なければnull)",
-    "searchButton": "検索ボタンのセレクタ"
+    "credits": "単位数の列インデックス (-1=なし)"
   },
   "pagination": {
-    "nextSelector": "次ページへのリンクのセレクタ (なければnull)"
-  },
-  "notes": "特記事項（全角数字、曜日の表記形式など）"
+    "nextSelector": "次ページへのリンクのCSSセレクタ。次へ・次ページ・>などのテキストを持つaタグ。なければnull"
+  }
 }
 
 JSONのみ返してください。説明不要。
@@ -63,11 +54,11 @@ ${JSON.stringify(elements.selects, null, 1)}
 ボタン要素:
 ${JSON.stringify(elements.buttons, null, 1)}
 
-この検索フォームで「全科目を検索する」ために必要な情報をJSONで返してください:
+この検索フォームで「全科目を網羅的に取得する」ために必要な情報をJSONで返してください:
 {
-  "yearSelectName": "年度を選ぶselectのname (なければnull)",
-  "facultySelectName": "学部/開設母体を選ぶselectのname (なければnull)。学部単位で回せるものを優先",
-  "searchButtonSelector": "検索を実行するボタンのCSSセレクタ (例: input[value=\\"検索\\"])"
+  "yearSelectName": "年度(年)を選ぶselectのname (なければnull)",
+  "facultySelectName": "【最重要】学部・学科・専攻など具体的な所属組織を選べるselectのname。オプション数が多いもの(10以上が理想)を優先。学部/大学院という大区分ではなく神学部・文学部・理工学部などの個別学部を選べるselectを選ぶ。なければnull",
+  "searchButtonSelector": "検索実行ボタンのCSSセレクタ"
 }
 JSONのみ。`;
 
