@@ -64,9 +64,31 @@ async function scrapeFaculty(page, year, faculty, seen) {
   let pageNum = 1;
 
   while (true) {
-    // フォームを選択してsubmit
+    // フォームを選択してsubmit (毎ページ検索ページに戻る)
     await page.goto(SEARCH_URL, { waitUntil: 'networkidle', timeout: 30000 });
-    await page.selectOption('select[name="select_bussinessyear"]', `${year}`).catch(() => {});
+
+    // 最初の学部のみ: 年度の実際のoption一覧をログ出力
+    if (pageNum === 1 && faculty.name === '神学部') {
+      const yearOptions = await page.evaluate(() =>
+        [...document.querySelectorAll('select[name="select_bussinessyear"] option')]
+          .map(o => o.value).slice(-6)
+      );
+      console.log(`[doshisha] 年度options末尾: ${yearOptions.join(', ')}`);
+    }
+
+    // 年度セレクト (2025が存在しない場合は最新年度を使う)
+    const yearSet = await page.evaluate((y) => {
+      const sel = document.querySelector('select[name="select_bussinessyear"]');
+      if (!sel) return false;
+      const opt = [...sel.options].find(o => o.value === String(y));
+      if (opt) { sel.value = String(y); return true; }
+      // なければ最大値(最新年度)を選ぶ
+      const values = [...sel.options].map(o => parseInt(o.value)).filter(n => !isNaN(n));
+      sel.value = String(Math.max(...values));
+      return `fallback:${sel.value}`;
+    }, year);
+    console.log(`[doshisha] ${faculty.name} 年度設定: ${yearSet}`);
+
     if (faculty.code) {
       await page.selectOption('select[name="subjectcd"]', faculty.code).catch(() => {});
     }
@@ -76,7 +98,7 @@ async function scrapeFaculty(page, year, faculty, seen) {
       page.locator('input[value="検索/Search"]').click(),
     ]);
 
-    // 2ページ目以降はページネーションリンクで移動
+    // 2ページ目以降: 検索後のページでページネーションリンクをクリック
     if (pageNum > 1) {
       const nextLink = page.locator(`a:has-text("${pageNum}"), a[href*="page=${pageNum}"]`).first();
       if (await nextLink.count() === 0) break;
@@ -90,11 +112,12 @@ async function scrapeFaculty(page, year, faculty, seen) {
     const $ = cheerio.load(html);
 
     // デバッグ: 最初の学部・1ページ目のみ
-    if (pageNum === 1 && faculty.code === '1') {
-      const firstDataRow = $('table.search-table tr').filter((_, tr) => $(tr).find('td').length > 0).first();
-      firstDataRow.find('td').each((i, td) => {
-        console.log(`[doshisha] col[${i}]: ${$(td).text().trim().slice(0, 40)}`);
-      });
+    if (pageNum === 1 && faculty.name === '神学部') {
+      const allTables = $('table').map((_, t) =>
+        `class="${$(t).attr('class')}" rows=${$(t).find('tr').length}`).get();
+      console.log(`[doshisha] テーブル:\n${allTables.join('\n') || '(なし)'}`);
+      const bodyText = $('body').text().replace(/\s+/g, ' ').slice(0, 300);
+      console.log(`[doshisha] body冒頭: ${bodyText}`);
     }
 
     const rows = $('table.search-table tr, table.search-table__content tr')
