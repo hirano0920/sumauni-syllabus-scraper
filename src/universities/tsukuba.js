@@ -1,69 +1,75 @@
 /**
- * 筑波大学 KdB スクレイパー
- *
- * KdBはAPIが公開されており、最もスクレイピングしやすい大学の一つ。
- * https://kdb.tsukuba.ac.jp/
- *
- * APIエンドポイント (非公式だが安定して使われている):
- *   GET https://kdb.tsukuba.ac.jp/syllabi/{year}/{subjectNumber}/ja
- *   GET https://kdb.tsukuba.ac.jp/api/v1/syllabi?year={year}&page={page}
- *
- * 科目番号: GA1xxxx (教養), GB1xxxx (情報学群) など
- * 全科目走査: page=1,2,3... で全件取得
+ * 筑波大学 KdB スクレイパー (HTMLスクレイピング版)
+ * API (403) → HTML直接スクレイピングに切り替え
  */
+import * as cheerio from 'cheerio';
 import { buildLectureId, buildSlotKey, normalizeSubject, normalizeInstructor } from '../lib/lecture_id.js';
 
 const UNIVERSITY_NAME = '筑波大学';
 const BASE_URL = 'https://kdb.tsukuba.ac.jp';
 
+const SEMESTERS = [
+  { code: '1A', label: '春A' }, { code: '1B', label: '春B' }, { code: '1C', label: '春C' },
+  { code: '2A', label: '秋A' }, { code: '2B', label: '秋B' }, { code: '2C', label: '秋C' },
+];
+
 export async function scrapeAll(fetcher, year = 2025) {
-  console.log(`[tsukuba] 開始 year=${year}`);
+  console.log(`[tsukuba] HTMLスクレイピング開始 year=${year}`);
+  const courses = [];
+
+  for (const sem of SEMESTERS) {
+    try {
+      const semCourses = await scrapeSemester(fetcher, year, sem);
+      courses.push(...semCourses);
+      console.log(`[tsukuba] ${sem.label}: ${semCourses.length}科目`);
+    } catch (e) {
+      console.warn(`[tsukuba] ${sem.label} 失敗: ${e.message}`);
+    }
+  }
+
+  console.log(`[tsukuba] 合計 ${courses.length}科目`);
+  return courses;
+}
+
+async function scrapeSemester(fetcher, year, sem) {
   const courses = [];
   let page = 1;
 
-  while (true) {
-    const url = `${BASE_URL}/api/v1/syllabi?year=${year}&page=${page}&per_page=100`;
-    let data;
-    try {
-      data = await fetcher.fetchJson(url);
-    } catch (e) {
-      console.warn(`[tsukuba] API失敗 page=${page}: ${e.message}`);
-      // APIが使えない場合はHTMLスクレイピングにフォールバック
-      break;
-    }
+  while (page <= 50) {
+    const url = `${BASE_URL}/syllabi?year=${year}&semester=${sem.code}&page=${page}&size=100`;
+    const html = await fetcher.fetchHtml(url);
+    const $ = cheerio.load(html);
 
-    const items = data?.syllabi ?? data?.data ?? data ?? [];
-    if (!Array.isArray(items) || items.length === 0) break;
+    // KdBのテーブル行を取得（実際のセレクタは確認後調整）
+    const rows = $('table tbody tr').filter((_, tr) => $(tr).find('td').length >= 4);
+    if (rows.length === 0) break;
 
-    for (const item of items) {
-      const course = mapApiResponse(item, year);
-      if (course) courses.push(course);
-    }
+    let added = 0;
+    rows.each((_, tr) => {
+      const course = parseRow($, tr, year, sem.label);
+      if (course) { courses.push(course); added++; }
+    });
 
-    console.log(`[tsukuba] page=${page} +${items.length} (計${courses.length})`);
-    if (!data?.next_page && !data?.hasNextPage) break;
+    if (added === 0) break;
     page++;
   }
 
   return courses;
 }
 
-function mapApiResponse(item, year) {
-  // KdBのJSONフィールド名 (実際のAPIレスポンスに合わせて調整が必要)
-  const name = item.科目名 ?? item.subject_name ?? item.name ?? '';
-  const instructor = item.担当教員 ?? item.instructor ?? '';
-  const faculty = item.学群 ?? item.department ?? '';
-  const dayJa = item.曜日 ?? item.day ?? '';
-  const period = parseInt(item.時限 ?? item.period ?? '0');
-  const room = item.教室 ?? item.room ?? '';
-  const credits = parseInt(item.単位数 ?? item.credits ?? '0') || 0;
-  const semester = item.学期 ?? item.semester ?? '';
-  const description = item.授業概要 ?? item.description ?? '';
+function parseRow($, tr, year, semLabel) {
+  const cells = $(tr).find('td');
+  // KdB列順: 科目番号|科目名|単位|標準年次|実施学期|曜時限|教室|担当教員
+  const name = $(cells[1]).text().trim();
+  const dayPeriodRaw = $(cells[5]).text().trim();
+  const room = $(cells[6]).text().trim() || '';
+  const instructor = $(cells[7]).text().trim() || '';
+  const credits = parseInt($(cells[2]).text().trim()) || 0;
 
-  if (!name || !dayJa || !period) return null;
+  if (!name || !dayPeriodRaw) return null;
 
-  const dayOfWeek = toDayJa(dayJa);
-  if (!dayOfWeek) return null;
+  const { dayOfWeek, period } = parseDayPeriod(dayPeriodRaw);
+  if (!dayOfWeek || !period) return null;
 
   const slotKey = buildSlotKey({ universityName: UNIVERSITY_NAME, dayJa: dayOfWeek, period, subject: name });
   const lectureId = buildLectureId({ universityName: UNIVERSITY_NAME, dayJa: dayOfWeek, period, subject: name });
@@ -72,38 +78,22 @@ function mapApiResponse(item, year) {
     : lectureId;
 
   return {
-    universityName: UNIVERSITY_NAME,
-    year,
-    semester: normalizeSemester(semester),
-    name,
-    nameNorm: normalizeSubject(name),
-    dayOfWeek,
-    period,
-    periodEnd: period,
-    room,
-    instructor,
-    instructorNorm: normalizeInstructor(instructor),
-    faculty,
-    credits,
-    description,
-    textbooks: [],
-    slotKey,
-    lectureId,
-    lectureIdWithInstructor,
+    universityName: UNIVERSITY_NAME, year,
+    semester: semLabel.includes('春') ? 'spring' : 'fall',
+    name, nameNorm: normalizeSubject(name),
+    dayOfWeek, period, periodEnd: period,
+    room, instructor, instructorNorm: normalizeInstructor(instructor),
+    faculty: '', credits, description: '', textbooks: [],
+    slotKey, lectureId, lectureIdWithInstructor,
     cmsType: 'kdb_tsukuba',
-    sourceUrl: `${BASE_URL}/syllabi/${year}/${item.科目番号 ?? item.id ?? ''}`,
+    sourceUrl: `${BASE_URL}/syllabi/${year}`,
   };
 }
 
-function toDayJa(raw) {
-  const map = { '月': '月曜日', '火': '火曜日', '水': '水曜日', '木': '木曜日', '金': '金曜日', '土': '土曜日', '日': '日曜日', '月曜日': '月曜日', '火曜日': '火曜日', '水曜日': '水曜日', '木曜日': '木曜日', '金曜日': '金曜日', '土曜日': '土曜日', '日曜日': '日曜日' };
-  return map[raw?.trim()] ?? null;
-}
-
-function normalizeSemester(raw) {
-  if (!raw) return 'unknown';
-  if (raw.includes('春') || raw.includes('1学期') || raw.includes('前期')) return 'spring';
-  if (raw.includes('秋') || raw.includes('2学期') || raw.includes('後期')) return 'fall';
-  if (raw.includes('通年')) return 'full';
-  return 'unknown';
+function parseDayPeriod(raw) {
+  const dayMap = { '月':'月曜日','火':'火曜日','水':'水曜日','木':'木曜日','金':'金曜日','土':'土曜日','日':'日曜日' };
+  const m = raw.match(/([月火水木金土日])/);
+  const p = raw.match(/(\d)/);
+  if (!m || !p) return {};
+  return { dayOfWeek: dayMap[m[1]] ?? null, period: parseInt(p[1]) };
 }
