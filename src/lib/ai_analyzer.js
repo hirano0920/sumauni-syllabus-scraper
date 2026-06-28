@@ -6,10 +6,14 @@
  */
 import OpenAI from 'openai';
 
+// Secret名は DEEPSEEK_KEY / DEEPSEEK_API_KEY どちらでも可
 const client = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY,
+  apiKey: process.env.DEEPSEEK_KEY || process.env.DEEPSEEK_API_KEY,
   baseURL: 'https://api.deepseek.com',
 });
+
+// モデルは環境変数で上書き可能。デフォルトは最新版に追従する deepseek-chat
+const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 
 const STRUCTURE_PROMPT = `
 あなたは大学シラバスサイトのHTML解析の専門家です。
@@ -51,8 +55,9 @@ export async function analyzeStructure(universityName, html) {
   const truncated = html.slice(0, 15000);
 
   const message = await client.chat.completions.create({
-    model: 'deepseek-chat',
+    model: MODEL,
     max_tokens: 1024,
+    response_format: { type: 'json_object' },
     messages: [{
       role: 'user',
       content: `大学名: ${universityName}\n\nHTML:\n${truncated}\n\n${STRUCTURE_PROMPT}`,

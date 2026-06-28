@@ -1,0 +1,166 @@
+name: Scrape All (AI Universal)
+
+# 全大学をAI自動解析でスクレイピング。一晩で走らせる用。
+# 各大学を並列ジョブに分割。
+
+on:
+  workflow_dispatch:
+    inputs:
+      write:
+        description: 'Firestoreに実書き込み (オフ=DRY RUN)'
+        type: boolean
+        default: false
+
+env:
+  SCRAPE_YEAR: '2026'
+
+jobs:
+  scrape:
+    name: ${{ matrix.university }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        university:
+          # 東京一科旧帝
+          - 東京大学
+          - 一橋大学
+          - 東京科学大学
+          - 北海道大学
+          - 東北大学
+          - 名古屋大学
+          - 大阪大学
+          - 九州大学
+          # TOCKY (筑波は専用スクレイパーで取得済み)
+          - お茶の水女子大学
+          - 千葉大学
+          - 神戸大学
+          - 横浜国立大学
+          # 早慶上理 (早稲田は専用)
+          - 慶應義塾大学
+          - 上智大学
+          - 東京理科大学
+          - 国際基督教大学
+          # GMARCH
+          - 学習院大学
+          - 明治大学
+          - 青山学院大学
+          - 立教大学
+          - 中央大学
+          - 法政大学
+          # 関関同立 (同志社は専用)
+          - 関西大学
+          - 関西学院大学
+          - 立命館大学
+          # 成成明学獨國武
+          - 成城大学
+          - 成蹊大学
+          - 明治学院大学
+          - 獨協大学
+          - 國學院大學
+          - 武蔵大学
+          # 日東駒専
+          - 日本大学
+          - 東洋大学
+          - 駒澤大学
+          - 専修大学
+          # 産近甲龍
+          - 京都産業大学
+          - 近畿大学
+          - 甲南大学
+          - 龍谷大学
+          # 電農名織
+          - 電気通信大学
+          - 東京農工大学
+          - 名古屋工業大学
+          - 豊橋技術科学大学
+          # 金岡千広
+          - 金沢大学
+          - 岡山大学
+          - 広島大学
+          # 5S
+          - 埼玉大学
+          - 信州大学
+          - 静岡大学
+          - 滋賀大学
+          - 新潟大学
+          # 4工大
+          - 芝浦工業大学
+          - 工学院大学
+          - 東京電機大学
+          - 東京都市大学
+          # その他主要私立
+          - 東京外国語大学
+          - 京都工芸繊維大学
+          - 神奈川大学
+          - 武蔵野大学
+          - 大阪経済大学
+          - 東北学院大学
+          - 中京大学
+          - 名城大学
+          - 西南学院大学
+          - 福岡大学
+          - 北海学園大学
+          - 東海大学
+          # 主要公立
+          - 東京都立大学
+          - 大阪公立大学
+          - 横浜市立大学
+          - 名古屋市立大学
+          - 京都府立大学
+          - 兵庫県立大学
+          # 地方国立
+          - 弘前大学
+          - 岩手大学
+          - 秋田大学
+          - 山形大学
+          - 福島大学
+          - 茨城大学
+          - 宇都宮大学
+          - 群馬大学
+          - 富山大学
+          - 福井大学
+          - 山梨大学
+          - 岐阜大学
+          - 三重大学
+          - 鳥取大学
+          - 島根大学
+          - 山口大学
+          - 徳島大学
+          - 香川大学
+          - 愛媛大学
+          - 高知大学
+          - 佐賀大学
+          - 長崎大学
+          - 熊本大学
+          - 大分大学
+          - 宮崎大学
+          - 鹿児島大学
+          - 琉球大学
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - name: Cache Playwright
+        uses: actions/cache@v4
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ hashFiles('package.json') }}
+      - name: Install Playwright
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium --with-deps
+      - name: Install Playwright deps
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: Scrape (AI universal)
+        run: node src/index.js --cms=universal --university="${{ matrix.university }}"
+        env:
+          FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
+          DEEPSEEK_KEY: ${{ secrets.DEEPSEEK_KEY }}
+          SCRAPE_YEAR: ${{ env.SCRAPE_YEAR }}
+          DRY_RUN: ${{ github.event.inputs.write == 'true' && '0' || '1' }}
