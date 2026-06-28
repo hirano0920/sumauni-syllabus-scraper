@@ -45,11 +45,6 @@ export async function scrapeAll(fetcher, year = 2025) {
     // ファイルをパース（CSV/Excel自動判定）
     const rows = await parseFile(filePath);
     console.log(`[tsukuba] ファイル行数: ${rows.length}`);
-    // 実データ行をダンプして列構造を確定する（各列を index:値 形式で）
-    for (let i = 0; i < Math.min(4, rows.length); i++) {
-      const labeled = (rows[i] || []).map((v, idx) => `[${idx}]${`${v}`.slice(0, 18)}`).join(' | ');
-      console.log(`[tsukuba] row${i}: ${labeled}`);
-    }
 
     const courses = mapRows(rows, year);
     console.log(`[tsukuba] 有効科目: ${courses.length}`);
@@ -67,31 +62,22 @@ async function parseFile(filePath) {
 
 function mapRows(rows, year) {
   const courses = [];
-  let dumped = 0;
-  // 1行目はヘッダーなのでスキップ
+  // 列順(確定): 0科目番号 1科目名 2単位 3標準年次 5実施学期 6曜時限 7担当教員 8授業概要
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     if (!Array.isArray(r) || r.length < 8) continue;
 
-    // 列順: 0科目番号 1科目名 2授業方法 3単位 4年次 5学期 6曜時限 7担当
     const name = `${r[1] ?? ''}`.trim();
-    const credits = parseFloat(`${r[3] ?? ''}`) || 0;
+    const credits = parseFloat(`${r[2] ?? ''}`) || 0;
     const semRaw = `${r[5] ?? ''}`.trim();
     const dayPeriodRaw = `${r[6] ?? ''}`.trim();
     const instructor = `${r[7] ?? ''}`.trim();
+    const description = `${r[8] ?? ''}`.trim();
 
     if (!name || name.length < 2) continue;
 
-    const { dayOfWeek, period } = parseDayPeriod(dayPeriodRaw);
+    const { dayOfWeek, period, periodEnd } = parseDayPeriod(dayPeriodRaw);
     if (!dayOfWeek || !period) continue;
-
-    // 有効行を3件だけ全列ダンプして列マッピングを検証
-    if (dumped < 3) {
-      const full = r.map((v, idx) => `[${idx}]${`${v}`.slice(0, 16)}`).join(' | ');
-      console.log(`[tsukuba] 有効行${dumped}: ${full}`);
-      console.log(`  → 抽出: name="${name}" 曜時限="${dayPeriodRaw}" 担当="${instructor}"`);
-      dumped++;
-    }
 
     const slotKey = buildSlotKey({ universityName: UNIVERSITY_NAME, dayJa: dayOfWeek, period, subject: name });
     const lectureId = buildLectureId({ universityName: UNIVERSITY_NAME, dayJa: dayOfWeek, period, subject: name });
@@ -103,9 +89,9 @@ function mapRows(rows, year) {
       universityName: UNIVERSITY_NAME, year,
       semester: normalizeSemester(semRaw),
       name, nameNorm: normalizeSubject(name),
-      dayOfWeek, period, periodEnd: period,
+      dayOfWeek, period, periodEnd: periodEnd ?? period,
       room: '', instructor, instructorNorm: normalizeInstructor(instructor),
-      faculty: '', credits, description: '', textbooks: [],
+      faculty: '', credits, description, textbooks: [],
       slotKey, lectureId, lectureIdWithInstructor,
       cmsType: 'kdb_tsukuba', sourceUrl: TOP_URL,
     });
@@ -114,12 +100,18 @@ function mapRows(rows, year) {
 }
 
 function parseDayPeriod(raw) {
-  // "春AB 月1,2" や "秋C 火3" など。曜日と最初の時限を取る
+  // "火7,8" → 火曜 7限〜8限 / "金3" → 金曜3限。曜日+全時限数字を拾い range を作る
   const dayMap = { '月':'月曜日','火':'火曜日','水':'水曜日','木':'木曜日','金':'金曜日','土':'土曜日','日':'日曜日' };
-  const m = raw.match(/([月火水木金土日])\s*([0-9０-９]+)/);
+  const z2h = s => s.replace(/[０-９]/g, d => '０１２３４５６７８９'.indexOf(d));
+  const m = raw.match(/([月火水木金土日])\s*([0-9０-９、,\-~]+)/);
   if (!m) return {};
-  const period = parseInt(m[2].replace(/[０-９]/g, d => '０１２３４５６７８９'.indexOf(d)));
-  return { dayOfWeek: dayMap[m[1]] ?? null, period: period || null };
+  const nums = (z2h(m[2]).match(/\d+/g) || []).map(Number).filter(n => n >= 1 && n <= 9);
+  if (nums.length === 0) return {};
+  return {
+    dayOfWeek: dayMap[m[1]] ?? null,
+    period: nums[0],
+    periodEnd: nums[nums.length - 1],
+  };
 }
 
 function normalizeSemester(raw) {

@@ -11,6 +11,10 @@ on:
         description: 'CMS種別'
         required: true
         default: 'tsukuba'
+      write:
+        description: 'Firestoreに実書き込みする (オフ=DRY RUN)'
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -41,13 +45,12 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
-      # デバッグ: スクリーンショット保存
-      - name: DRY RUN (Firestoreに書かない)
+      - name: スクレイピング実行 (write=trueでFirestore書き込み)
         run: node src/index.js --cms=${{ github.event.inputs.cms }} --university="${{ github.event.inputs.university }}"
         env:
           FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
           SCRAPE_YEAR: '2025'
-          DRY_RUN: '1'
+          DRY_RUN: ${{ github.event.inputs.write == 'true' && '0' || '1' }}
           PLAYWRIGHT_SCREENSHOT: '1'
 
       # スクリーンショットをArtifactとして保存
