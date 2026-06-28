@@ -17,31 +17,23 @@ export async function scrapeAll(fetcher, year = 2025) {
   await withPage(async (page) => {
     await page.goto(TOP_URL, { waitUntil: 'networkidle', timeout: 30000 });
 
-    // ページ上の全ボタンをログ (デバッグ)
-    const allButtons = await page.evaluate(() =>
-      [...document.querySelectorAll('input, button, a')].filter(el =>
-        el.type === 'submit' || el.type === 'button' || el.tagName === 'BUTTON' ||
-        (el.tagName === 'A' && (el.textContent.includes('検索') || el.textContent.includes('search')))
-      ).map(el => `${el.tagName} type="${el.type}" value="${el.value}" text="${el.textContent.trim().slice(0,20)}" id="${el.id}" class="${el.className.slice(0,30)}"`)
-    );
-    console.log(`[tsukuba] ボタン候補:\n${allButtons.join('\n')}`);
+    // 検索ボタン(#btnSearch)をクリック → JSの検索ハンドラが発火する
+    // form.submit()ではonclickハンドラが走らないため0件になる
+    await page.locator('#btnSearch').click();
 
-    // JS経由でフォームをsubmit (最も確実)
-    await page.evaluate(() => {
-      const form = document.querySelector('#ut-SB0070-form') || document.querySelector('form');
-      if (form) form.submit();
-    });
-    await page.waitForLoadState('networkidle', { timeout: 30000 });
+    // 検索結果(ut-listに行)が描画されるまで待つ
+    await page.waitForSelector('table.ut-list tr td', { timeout: 30000 }).catch(() => {});
+    await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
 
     // スクリーンショット
     if (process.env.PLAYWRIGHT_SCREENSHOT === '1') {
       await mkdir('/tmp/scraper-screenshots', { recursive: true }).catch(() => {});
-      await page.screenshot({ path: '/tmp/scraper-screenshots/tsukuba_after_submit.png', fullPage: false });
+      await page.screenshot({ path: '/tmp/scraper-screenshots/tsukuba_after_search.png', fullPage: false });
     }
 
     // 結果確認
     const rowCount = await page.locator('table.ut-list tr').count();
-    console.log(`[tsukuba] submit後 行数: ${rowCount}`);
+    console.log(`[tsukuba] 検索後 行数: ${rowCount}`);
 
     // 最初の行の内容をログ
     if (rowCount > 0) {
