@@ -47,6 +47,43 @@ JSONのみ返してください。説明不要。
 `;
 
 /**
+ * フォーム解析: ページの操作要素(select/button)の要約から
+ * 「どれが年度・学部・検索ボタンか」をAIに判断させる。
+ * @param {string} universityName
+ * @param {object} elements - { selects: [{name,id,sampleOptions}], buttons: [{tag,id,value,text,selector}] }
+ */
+export async function analyzeForm(universityName, elements) {
+  const prompt = `
+大学名: ${universityName}
+以下は大学シラバス検索ページの操作要素です。
+
+SELECT要素:
+${JSON.stringify(elements.selects, null, 1)}
+
+ボタン要素:
+${JSON.stringify(elements.buttons, null, 1)}
+
+この検索フォームで「全科目を検索する」ために必要な情報をJSONで返してください:
+{
+  "yearSelectName": "年度を選ぶselectのname (なければnull)",
+  "facultySelectName": "学部/開設母体を選ぶselectのname (なければnull)。学部単位で回せるものを優先",
+  "searchButtonSelector": "検索を実行するボタンのCSSセレクタ (例: input[value=\\"検索\\"])"
+}
+JSONのみ。`;
+
+  const res = await client.chat.completions.create({
+    model: MODEL,
+    max_tokens: 512,
+    response_format: { type: 'json_object' },
+    messages: [{ role: 'user', content: prompt }],
+  });
+  const text = res.choices[0].message.content.trim();
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error(`form解析失敗: ${text.slice(0, 150)}`);
+  return JSON.parse(m[0]);
+}
+
+/**
  * @param {string} universityName
  * @param {string} html - シラバス結果ページのHTML（先頭15000文字で十分）
  * @returns {Promise<object>} - 解析結果JSON

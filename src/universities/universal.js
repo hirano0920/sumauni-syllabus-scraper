@@ -1,20 +1,19 @@
 /**
- * AI自動解析ユニバーサルスクレイパー
+ * AI駆動ユニバーサルスクレイパー (v2)
  *
- * 流れ:
- * 1. Playwrightでシラバスページを開く
- * 2. HTMLをDeepSeek APIに渡して構造を自動解析(セレクタ・列番号・学部セレクト・ページネーション)
- * 3. 学部セレクトがあれば全学部をループ、各学部で検索→全ページスクレイピング
- * 4. なければ単純検索→全ページ
+ * 1. ページを開いて操作要素(select/button)を実DOMから抽出
+ * 2. AIに「どれが年度/学部/検索ボタンか」を判断させる
+ * 3. 学部selectの全optionを実DOMからループ
+ * 4. 各学部で検索→結果テーブルをAI解析(初回のみ)→抽出→ページネーション
+ *
+ * 自己診断ログを厚めに出すので、一晩DRY RUNすれば各校の成否原因が分かる。
  */
 import * as cheerio from 'cheerio';
 import { withPage } from '../lib/browser.js';
-import { analyzeStructure, extractCourses } from '../lib/ai_analyzer.js';
+import { analyzeForm, analyzeStructure, extractCourses } from '../lib/ai_analyzer.js';
 import { buildLectureId, buildSlotKey, normalizeSubject, normalizeInstructor } from '../lib/lecture_id.js';
 
-const DAY_MAP = {
-  '月':'月曜日','火':'火曜日','水':'水曜日','木':'木曜日','金':'金曜日','土':'土曜日',
-};
+const DAY_MAP = { '月':'月曜日','火':'火曜日','水':'水曜日','木':'木曜日','金':'金曜日','土':'土曜日' };
 const z2h = s => s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
 
 function parseDayPeriod(raw) {
@@ -25,125 +24,166 @@ function parseDayPeriod(raw) {
   return { dayOfWeek: DAY_MAP[m[1]] ?? null, period: parseInt(p[1]) || null };
 }
 
-export async function scrapeUniversal(univConfig, year = 2026) {
-  const { name: universityName, syllabusBase } = univConfig;
-  console.log(`[universal] ${universityName} 開始`);
+const L = (u, msg) => console.log(`[universal:${u}] ${msg}`);
 
+export async function scrapeUniversal(univConfig, year = 2026) {
+  const { name: u, syllabusBase } = univConfig;
+  L(u, `開始 → ${syllabusBase}`);
   const allCourses = [];
   const seen = new Set();
 
   await withPage(async (page) => {
-    await page.goto(syllabusBase, { waitUntil: 'networkidle', timeout: 45000 }).catch(() => {});
-    await page.waitForTimeout(3000);
-
-    // 年度セレクトを設定
-    await setYear(page, year);
-
-    // 初回検索（全件 or デフォルト表示）してAIに構造解析させる
-    await clickSearch(page);
-    const firstHtml = await page.content();
-
-    let structure;
+    // 1. ページを開く
     try {
-      structure = await analyzeStructure(universityName, firstHtml);
-      console.log(`[universal] ${universityName} AI解析: table="${structure.tableSelector}" name列=${structure.columns?.name} 曜時限列=${structure.columns?.dayPeriod} 学部select=${structure.form?.facultySelect || 'なし'}`);
-    } catch (e) {
-      console.warn(`[universal] ${universityName} AI解析失敗: ${e.message}`);
+      await page.goto(syllabusBase, { waitUntil: 'networkidle', timeout: 45000 });
+    } catch {
+      await page.goto(syllabusBase, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
+    }
+    await page.waitForTimeout(4000);
+
+    // 2. 操作要素を実DOMから抽出
+    const elements = await extractInteractiveElements(page);
+    L(u, `select数=${elements.selects.length} button数=${elements.buttons.length}`);
+    if (elements.selects.length === 0 && elements.buttons.length === 0) {
+      L(u, `操作要素なし(SPA or 別ページ) — スキップ`);
       return;
     }
 
-    const facultySelect = structure.form?.facultySelect;
+    // 3. AIにフォーム構造を判断させる
+    let formPlan;
+    try {
+      formPlan = await analyzeForm(u, elements);
+      L(u, `AI判定: 年度=${formPlan.yearSelectName} 学部=${formPlan.facultySelectName} 検索=${formPlan.searchButtonSelector}`);
+    } catch (e) {
+      L(u, `AIフォーム解析失敗: ${e.message}`);
+      return;
+    }
 
-    if (facultySelect) {
-      // 学部セレクトの全optionを取得してループ
-      const faculties = await page.evaluate((sel) => {
-        const s = document.querySelector(`select[name="${sel}"]`);
+    // 4. 学部optionを実DOMから取得
+    let faculties = [];
+    if (formPlan.facultySelectName) {
+      faculties = await page.evaluate((name) => {
+        const s = document.querySelector(`select[name="${name}"]`);
         if (!s) return [];
         return [...s.options]
-          .filter(o => o.value && o.value !== ':' && o.value !== '-1' && o.value !== '')
-          .map(o => ({ value: o.value, label: o.text.trim().slice(0, 20) }));
-      }, facultySelect).catch(() => []);
+          .filter(o => o.value && !['', ':', '-1', '00', '0'].includes(o.value) && o.text.trim().length > 1)
+          .map(o => ({ value: o.value, label: o.text.trim().slice(0, 24) }));
+      }, formPlan.facultySelectName).catch(() => []);
+    }
+    L(u, `学部数=${faculties.length}`);
 
-      console.log(`[universal] ${universityName} 学部数: ${faculties.length}`);
+    let structure = null;
 
-      if (faculties.length === 0) {
-        await scrapePages(page, structure, universityName, '', year, allCourses, seen);
-      } else {
-        for (const fac of faculties) {
-          try {
-            await page.goto(syllabusBase, { waitUntil: 'networkidle', timeout: 45000 }).catch(() => {});
-            await page.waitForTimeout(1500);
-            await setYear(page, year);
-            await page.selectOption(`select[name="${facultySelect}"]`, fac.value).catch(() => {});
-            await clickSearch(page);
-            const before = allCourses.length;
-            await scrapePages(page, structure, universityName, fac.label, year, allCourses, seen);
-            console.log(`[universal] ${universityName} ${fac.label}: +${allCourses.length - before} (計${allCourses.length})`);
-          } catch (e) {
-            console.warn(`[universal] ${universityName} ${fac.label} 失敗: ${e.message}`);
-          }
-          await page.waitForTimeout(800);
+    const runOnce = async (facValue, facLabel) => {
+      // 検索ページに戻る
+      try {
+        await page.goto(syllabusBase, { waitUntil: 'networkidle', timeout: 45000 });
+      } catch {
+        await page.goto(syllabusBase, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
+      }
+      await page.waitForTimeout(1500);
+
+      // 年度設定
+      if (formPlan.yearSelectName) {
+        await page.evaluate(({ name, y }) => {
+          const s = document.querySelector(`select[name="${name}"]`);
+          if (s) { const o = [...s.options].find(x => x.value === String(y)); if (o) s.value = String(y); }
+        }, { name: formPlan.yearSelectName, y: year }).catch(() => {});
+      }
+      // 学部設定
+      if (facValue && formPlan.facultySelectName) {
+        await page.selectOption(`select[name="${formPlan.facultySelectName}"]`, facValue).catch(() => {});
+      }
+      // 検索ボタンクリック
+      const btn = page.locator(formPlan.searchButtonSelector).first();
+      if (await btn.count() > 0) {
+        await Promise.all([
+          page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }).catch(() => {}),
+          btn.click().catch(() => {}),
+        ]).catch(() => {});
+      }
+      await page.waitForTimeout(2000);
+
+      // 結果テーブル構造をAI解析(初回のみ)
+      if (!structure) {
+        const html = await page.content();
+        try {
+          structure = await analyzeStructure(u, html);
+          L(u, `テーブル解析: table="${structure.tableSelector}" name列=${structure.columns?.name} 曜時限列=${structure.columns?.dayPeriod}`);
+        } catch (e) {
+          L(u, `テーブル解析失敗: ${e.message}`);
+          return;
         }
       }
+
+      await scrapePages(page, structure, u, facLabel, year, allCourses, seen);
+    };
+
+    if (faculties.length > 0) {
+      for (const fac of faculties) {
+        const before = allCourses.length;
+        try {
+          await runOnce(fac.value, fac.label);
+          L(u, `${fac.label}: +${allCourses.length - before} (計${allCourses.length})`);
+        } catch (e) {
+          L(u, `${fac.label} 失敗: ${e.message}`);
+        }
+        await page.waitForTimeout(600);
+      }
     } else {
-      await scrapePages(page, structure, universityName, '', year, allCourses, seen);
+      // 学部なし: 単純検索
+      await runOnce(null, '');
     }
   });
 
-  console.log(`[universal] ${universityName} 合計 ${allCourses.length}科目`);
+  L(u, `合計 ${allCourses.length}科目`);
   return allCourses;
 }
 
-async function setYear(page, year) {
-  await page.evaluate((y) => {
-    const sels = [...document.querySelectorAll('select')].filter(s =>
-      /nendo|year|Year|bussinessyear|年度/i.test(s.name + s.id));
-    for (const sel of sels) {
-      const opt = [...sel.options].find(o => o.value === String(y));
-      if (opt) sel.value = String(y);
-    }
-  }, year).catch(() => {});
+async function extractInteractiveElements(page) {
+  return page.evaluate(() => {
+    const selects = [...document.querySelectorAll('select')].slice(0, 15).map(s => ({
+      name: s.name, id: s.id,
+      sampleOptions: [...s.options].slice(0, 5).map(o => `${o.value}:${o.text.trim()}`.slice(0, 30)),
+      optionCount: s.options.length,
+    }));
+    const buttons = [...document.querySelectorAll('input[type="submit"],input[type="button"],button')]
+      .slice(0, 15).map(b => ({
+        tag: b.tagName, id: b.id,
+        value: b.value || '', text: (b.textContent || '').trim().slice(0, 20),
+        selector: b.id ? `#${b.id}` : (b.value ? `input[value="${b.value}"]` : b.tagName.toLowerCase()),
+      }));
+    return { selects, buttons };
+  });
 }
 
-async function clickSearch(page) {
-  const btn = page.locator('input[type="submit"], input[value*="検索"], button:has-text("検索"), input[value*="Search"]').first();
-  if (await btn.count() > 0) {
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }).catch(() => {}),
-      btn.click().catch(() => {}),
-    ]).catch(() => {});
-    await page.waitForTimeout(1500);
-  }
-}
-
-async function scrapePages(page, structure, universityName, faculty, year, allCourses, seen) {
+async function scrapePages(page, structure, u, faculty, year, allCourses, seen) {
+  if (!structure?.tableSelector) return;
   let pageNum = 1;
   while (true) {
     const html = await page.content();
     const $ = cheerio.load(html);
-    const raw = extractCourses($, structure, universityName, faculty, year);
+    const raw = extractCourses($, structure, u, faculty, year);
 
     let added = 0;
     for (const c of raw) {
       const { dayOfWeek, period } = parseDayPeriod(c.dayPeriodRaw);
       if (!dayOfWeek || !period || !c.name) continue;
-      const slotKey = buildSlotKey({ universityName, dayJa: dayOfWeek, period, subject: c.name });
+      const slotKey = buildSlotKey({ universityName: u, dayJa: dayOfWeek, period, subject: c.name });
       const dedup = slotKey + c.instructor;
       if (seen.has(dedup)) continue;
       seen.add(dedup);
-
-      const lectureId = buildLectureId({ universityName, dayJa: dayOfWeek, period, subject: c.name });
+      const lectureId = buildLectureId({ universityName: u, dayJa: dayOfWeek, period, subject: c.name });
       allCourses.push({
-        universityName, year, semester: 'unknown',
+        universityName: u, year, semester: 'unknown',
         name: c.name, nameNorm: normalizeSubject(c.name),
         dayOfWeek, period, periodEnd: period,
         room: c.room, instructor: c.instructor,
         instructorNorm: normalizeInstructor(c.instructor),
-        faculty: c.faculty, credits: c.credits,
-        description: '', textbooks: [],
+        faculty: c.faculty, credits: c.credits, description: '', textbooks: [],
         slotKey, lectureId,
         lectureIdWithInstructor: c.instructor
-          ? buildLectureId({ universityName, dayJa: dayOfWeek, period, subject: c.name, instructor: c.instructor })
+          ? buildLectureId({ universityName: u, dayJa: dayOfWeek, period, subject: c.name, instructor: c.instructor })
           : lectureId,
         cmsType: 'universal_ai', sourceUrl: page.url(),
       });
@@ -158,7 +198,7 @@ async function scrapePages(page, structure, universityName, faculty, year, allCo
       page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }).catch(() => {}),
       next.click().catch(() => {}),
     ]).catch(() => {});
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(700);
     pageNum++;
     if (pageNum > 200) break;
   }
