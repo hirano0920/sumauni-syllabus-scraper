@@ -2,12 +2,11 @@ name: Syllabus Scraper
 
 on:
   schedule:
-    # 毎週日曜 2:00 JST (土曜 17:00 UTC)
-    - cron: '0 17 * * 6'
+    - cron: '0 17 * * 6'  # 毎週日曜 2:00 JST
   workflow_dispatch:
     inputs:
       cms:
-        description: 'CMS種別 (livecampus / campusplan / gakuen / tsukuba / custom / all)'
+        description: 'CMS種別 (livecampus / campusplan / gakuen / custom / all)'
         required: false
         default: 'all'
       university:
@@ -24,7 +23,7 @@ env:
   SCRAPE_YEAR: '2025'
 
 jobs:
-  # ---- LiveCampus (17校 並列) ----
+  # ---- LiveCampus (22校 並列) ----
   livecampus:
     name: LiveCampus - ${{ matrix.university }}
     runs-on: ubuntu-latest
@@ -32,7 +31,7 @@ jobs:
     if: ${{ github.event.inputs.cms == '' || github.event.inputs.cms == 'all' || github.event.inputs.cms == 'livecampus' }}
     strategy:
       fail-fast: false
-      max-parallel: 17
+      max-parallel: 22
       matrix:
         university:
           - 早稲田大学
@@ -52,6 +51,11 @@ jobs:
           - 工学院大学
           - 東京電機大学
           - 東京都市大学
+          - 神奈川大学
+          - 東北学院大学
+          - 大東文化大学
+          - 東京農業大学
+          - 帝京大学
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -65,7 +69,7 @@ jobs:
           SCRAPE_YEAR: ${{ env.SCRAPE_YEAR }}
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
 
-  # ---- CampusPlan (8校 並列) ----
+  # ---- CampusPlan (11校 並列) ----
   campusplan:
     name: CampusPlan - ${{ matrix.university }}
     runs-on: ubuntu-latest
@@ -73,7 +77,7 @@ jobs:
     if: ${{ github.event.inputs.cms == '' || github.event.inputs.cms == 'all' || github.event.inputs.cms == 'campusplan' }}
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 11
       matrix:
         university:
           - 立命館大学
@@ -84,6 +88,9 @@ jobs:
           - 龍谷大学
           - 甲南大学
           - 京都産業大学
+          - 大阪経済大学
+          - 大阪工業大学
+          - 佛教大学
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -126,9 +133,9 @@ jobs:
           SCRAPE_YEAR: ${{ env.SCRAPE_YEAR }}
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
 
-  # ---- カスタム・独自システム (31校 並列) ----
-  custom:
-    name: カスタム - ${{ matrix.university }}
+  # ---- カスタム (79校 を2バッチに分割、各20並列) ----
+  custom-a:
+    name: カスタムA - ${{ matrix.university }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     if: ${{ github.event.inputs.cms == '' || github.event.inputs.cms == 'all' || github.event.inputs.cms == 'custom' }}
@@ -137,7 +144,7 @@ jobs:
       max-parallel: 20
       matrix:
         university:
-          # 東京一科旧帝
+          # 旧帝・難関国立・早慶上理
           - 東京大学
           - 一橋大学
           - 東京科学大学
@@ -147,52 +154,111 @@ jobs:
           - 京都大学
           - 大阪大学
           - 九州大学
-          # TOCKY
           - 筑波大学
           - お茶の水女子大学
           - 千葉大学
-          - 神戸大学
           - 横浜国立大学
-          # 早慶上理
+          - 神戸大学
           - 慶應義塾大学
           - 上智大学
           - 東京理科大学
           - 国際基督教大学
-          # GMARCH
           - 学習院大学
-          # 金岡千広
-          - 金沢大学
-          - 岡山大学
-          - 広島大学
-          # 電農名織
+          # 電農名織・特殊国立
           - 電気通信大学
           - 東京農工大学
           - 名古屋工業大学
           - 豊橋技術科学大学
+          - 東京外国語大学
+          - 東京学芸大学
+          - 京都工芸繊維大学
+          - 九州工業大学
+          # 金岡千広
+          - 金沢大学
+          - 岡山大学
+          - 広島大学
           # 5S
           - 埼玉大学
           - 信州大学
           - 静岡大学
           - 滋賀大学
           - 新潟大学
-          # 主要国公立 (公立)
+          # 東北地方国立
+          - 弘前大学
+          - 岩手大学
+          - 秋田大学
+          - 山形大学
+          - 福島大学
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: node src/index.js --cms=custom --university="${{ matrix.university }}"
+        env:
+          FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
+          SCRAPE_YEAR: ${{ env.SCRAPE_YEAR }}
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
+
+  custom-b:
+    name: カスタムB - ${{ matrix.university }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    if: ${{ github.event.inputs.cms == '' || github.event.inputs.cms == 'all' || github.event.inputs.cms == 'custom' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        university:
+          # 関東・甲信越国立
+          - 茨城大学
+          - 宇都宮大学
+          - 群馬大学
+          - 富山大学
+          - 福井大学
+          - 山梨大学
+          # 東海・近畿国立
+          - 岐阜大学
+          - 三重大学
+          - 和歌山大学
+          # 中国・四国国立
+          - 鳥取大学
+          - 島根大学
+          - 山口大学
+          - 徳島大学
+          - 香川大学
+          - 愛媛大学
+          - 高知大学
+          # 九州・沖縄国立
+          - 佐賀大学
+          - 長崎大学
+          - 熊本大学
+          - 大分大学
+          - 宮崎大学
+          - 鹿児島大学
+          - 琉球大学
+          # 主要公立
           - 東京都立大学
           - 大阪公立大学
           - 横浜市立大学
           - 名古屋市立大学
           - 京都府立大学
           - 兵庫県立大学
-          # 主要国公立 (地方国立)
-          - 山形大学
-          - 茨城大学
-          - 宇都宮大学
-          - 群馬大学
-          - 富山大学
-          - 岐阜大学
-          - 三重大学
-          - 熊本大学
-          - 長崎大学
-          - 鹿児島大学
+          - 静岡県立大学
+          - 愛知県立大学
+          - 北九州市立大学
+          # 名古屋圏私立
+          - 中京大学
+          - 名城大学
+          - 南山大学
+          - 愛知大学
+          # 九州私立
+          - 西南学院大学
+          - 福岡大学
+          # 北海道私立
+          - 北海学園大学
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -208,17 +274,18 @@ jobs:
 
   # ---- 完了サマリー ----
   notify:
-    name: 完了サマリー
+    name: 完了サマリー (117校)
     runs-on: ubuntu-latest
-    needs: [livecampus, campusplan, gakuen, custom]
+    needs: [livecampus, campusplan, gakuen, custom-a, custom-b]
     if: always()
     steps:
       - name: Summary
         run: |
-          echo "## シラバス スクレイピング完了 (61校)" >> $GITHUB_STEP_SUMMARY
+          echo "## シラバス スクレイピング完了 (117校)" >> $GITHUB_STEP_SUMMARY
           echo "| グループ | 校数 | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| LiveCampus (日東駒専・GMARCH・4工大等) | 17校 | ${{ needs.livecampus.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| CampusPlan (関関同立・産近甲龍) | 8校 | ${{ needs.campusplan.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 学園シリーズ (成成明学獨國武) | 5校 | ${{ needs.gakuen.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| カスタム (旧帝・早慶上理・TOCKY・電農名織・金岡千広・5S・主要国公立等) | 47校 | ${{ needs.custom.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| LiveCampus | 22校 | ${{ needs.livecampus.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| CampusPlan | 11校 | ${{ needs.campusplan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 学園シリーズ | 5校 | ${{ needs.gakuen.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| カスタムA (旧帝・難関・電農名織・5S等) | 40校 | ${{ needs.custom-a.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| カスタムB (地方国立・公立・名古屋/九州私立等) | 39校 | ${{ needs.custom-b.result }} |" >> $GITHUB_STEP_SUMMARY
