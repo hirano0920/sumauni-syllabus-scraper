@@ -102,7 +102,20 @@ async function scrapeFacultySemester(page, year, faculty, sem, seen) {
     ]);
 
     const html = await page.content();
+    const finalUrl = page.url();
     const $ = cheerio.load(html);
+
+    // デバッグ: POST後の状態を確認（最初の学部・1ページ目のみ）
+    if (pageNum === 1 && faculty.code === '111973') {
+      console.log(`[waseda] POST後URL: ${finalUrl}`);
+      console.log(`[waseda] POST後タイトル: ${await page.title()}`);
+      // 全テーブルのclass/rows
+      const tables = $('table').map((_, t) => `class="${$(t).attr('class')}" rows=${$(t).find('tr').length}`).get();
+      console.log(`[waseda] テーブル一覧:\n${tables.join('\n') || '(なし)'}`);
+      // ページ内テキスト冒頭
+      const bodyText = $('body').text().replace(/\s+/g, ' ').slice(0, 400);
+      console.log(`[waseda] body冒頭: ${bodyText}`);
+    }
 
     const rows = $('table.ct-common.ct-sirabasu tbody tr, table.ct-sirabasu tbody tr');
     if (rows.length === 0) break;
