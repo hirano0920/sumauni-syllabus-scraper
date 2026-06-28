@@ -1,6 +1,6 @@
 {
   "livecampus": [
-    { "name": "早稲田大学",     "syllabusBase": "https://www.wsl.waseda.jp/syllabus/",        "year": 2025, "note": "LiveCampus" },
+    { "name": "早稲田大学",     "syllabusBase": "https://www.wsl.waseda.jp/syllabus/JAA101.php", "year": 2025, "note": "LiveCampus" },
     { "name": "立教大学",       "syllabusBase": "https://syllabus.rikkyo.ac.jp/",              "year": 2025, "note": "LiveCampus" },
     { "name": "法政大学",       "syllabusBase": "https://syllabus.hosei.ac.jp/",               "year": 2025, "note": "LiveCampus" },
     { "name": "日本大学",       "syllabusBase": "https://syllabus.nihon-u.ac.jp/",             "year": 2025, "note": "LiveCampus" },

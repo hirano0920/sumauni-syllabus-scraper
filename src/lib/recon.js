@@ -16,7 +16,8 @@ export async function recon(name, url) {
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 40000 }).catch(() => {});
     }
 
-    await page.waitForTimeout(2000);
+    // SPA対応: JS描画が完了するまで追加で待つ
+    await page.waitForTimeout(4000);
     const finalUrl = page.url();
     const title = await page.title();
     console.log(`[recon] 最終URL: ${finalUrl}`);
