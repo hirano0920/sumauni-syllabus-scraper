@@ -18,6 +18,7 @@ import { parseCourseListPage as lcListParser, parseCourseDetailPage as lcDetailP
 import { parseCourseListPage as cpListParser, parseCourseDetailPage as cpDetailParser } from './universities/campusplan.js';
 import { scrapeAll as scrapeTsukuba } from './universities/tsukuba.js';
 import { scrapeAll as scrapeWaseda } from './universities/waseda.js';
+import { scrapeAll as scrapeDoshisha } from './universities/doshisha.js';
 import { recon } from './lib/recon.js';
 import universities from '../config/universities.json' assert { type: 'json' };
 import pLimit from 'p-limit';
@@ -67,10 +68,17 @@ async function main() {
     }
   }
 
-  // --- 早稲田 (LiveCampus専用) ---
+  // --- 早稲田 ---
   if (!CMS_FILTER || CMS_FILTER === 'livecampus' || CMS_FILTER === 'waseda') {
     if (!UNIV_FILTER || UNIV_FILTER === '早稲田大学') {
       await runScraper('早稲田大学', () => scrapeWaseda(fetcher, YEAR), results);
+    }
+  }
+
+  // --- 同志社 ---
+  if (!CMS_FILTER || CMS_FILTER === 'campusplan' || CMS_FILTER === 'doshisha') {
+    if (!UNIV_FILTER || UNIV_FILTER === '同志社大学') {
+      await runScraper('同志社大学', () => scrapeDoshisha(fetcher, YEAR), results);
     }
   }
 
