@@ -1,13 +1,15 @@
 /**
- * AI自動解析: Claude APIにHTMLを渡してシラバスサイトの構造を自動抽出。
- * セレクタの手書きが不要になる。
+ * AI自動解析: DeepSeek APIにHTMLを渡してシラバスサイトの構造を自動抽出。
+ * OpenAI互換APIなのでbase_urlを変えるだけで動く。
  *
- * 1大学あたり1回のAPI呼び出し（$0.001以下）でセレクタを確定し、
- * 以降は確定したセレクタで高速スクレイピングする。
+ * DeepSeek-V3: $0.07/MTok(input) — $9.92で約140M tokens = 約9000大学分
  */
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const client = new OpenAI({
+  apiKey: process.env.DEEPSEEK_API_KEY,
+  baseURL: 'https://api.deepseek.com',
+});
 
 const STRUCTURE_PROMPT = `
 あなたは大学シラバスサイトのHTML解析の専門家です。
@@ -48,8 +50,8 @@ JSONのみ返してください。説明不要。
 export async function analyzeStructure(universityName, html) {
   const truncated = html.slice(0, 15000);
 
-  const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+  const message = await client.chat.completions.create({
+    model: 'deepseek-chat',
     max_tokens: 1024,
     messages: [{
       role: 'user',
@@ -57,7 +59,7 @@ export async function analyzeStructure(universityName, html) {
     }],
   });
 
-  const text = message.content[0].text.trim();
+  const text = message.choices[0].message.content.trim();
   // JSON部分だけ抽出
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error(`JSON解析失敗: ${text.slice(0, 200)}`);

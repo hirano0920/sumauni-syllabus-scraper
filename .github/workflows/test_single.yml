@@ -49,7 +49,7 @@ jobs:
         run: node src/index.js --cms=${{ github.event.inputs.cms }} --university="${{ github.event.inputs.university }}"
         env:
           FIREBASE_SA_KEY: ${{ secrets.FIREBASE_SA_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           SCRAPE_YEAR: '2026'
           DRY_RUN: ${{ github.event.inputs.write == 'true' && '0' || '1' }}
           PLAYWRIGHT_SCREENSHOT: '1'
