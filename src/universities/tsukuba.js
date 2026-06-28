@@ -45,8 +45,10 @@ export async function scrapeAll(fetcher, year = 2025) {
     // ファイルをパース（CSV/Excel自動判定）
     const rows = await parseFile(filePath);
     console.log(`[tsukuba] ファイル行数: ${rows.length}`);
-    if (rows.length > 0) {
-      console.log(`[tsukuba] ヘッダー: ${JSON.stringify(rows[0]).slice(0, 300)}`);
+    // 実データ行をダンプして列構造を確定する（各列を index:値 形式で）
+    for (let i = 0; i < Math.min(4, rows.length); i++) {
+      const labeled = (rows[i] || []).map((v, idx) => `[${idx}]${`${v}`.slice(0, 18)}`).join(' | ');
+      console.log(`[tsukuba] row${i}: ${labeled}`);
     }
 
     const courses = mapRows(rows, year);
