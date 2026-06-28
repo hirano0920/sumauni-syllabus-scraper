@@ -175,6 +175,24 @@ jobs:
           - 静岡大学
           - 滋賀大学
           - 新潟大学
+          # 主要国公立 (公立)
+          - 東京都立大学
+          - 大阪公立大学
+          - 横浜市立大学
+          - 名古屋市立大学
+          - 京都府立大学
+          - 兵庫県立大学
+          # 主要国公立 (地方国立)
+          - 山形大学
+          - 茨城大学
+          - 宇都宮大学
+          - 群馬大学
+          - 富山大学
+          - 岐阜大学
+          - 三重大学
+          - 熊本大学
+          - 長崎大学
+          - 鹿児島大学
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -203,4 +221,4 @@ jobs:
           echo "| LiveCampus (日東駒専・GMARCH・4工大等) | 17校 | ${{ needs.livecampus.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| CampusPlan (関関同立・産近甲龍) | 8校 | ${{ needs.campusplan.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 学園シリーズ (成成明学獨國武) | 5校 | ${{ needs.gakuen.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| カスタム (旧帝・早慶上理・TOCKY・電農名織・金岡千広・5S等) | 31校 | ${{ needs.custom.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| カスタム (旧帝・早慶上理・TOCKY・電農名織・金岡千広・5S・主要国公立等) | 47校 | ${{ needs.custom.result }} |" >> $GITHUB_STEP_SUMMARY
