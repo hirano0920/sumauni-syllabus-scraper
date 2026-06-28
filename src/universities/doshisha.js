@@ -116,8 +116,10 @@ async function scrapeFaculty(page, year, faculty, seen) {
       const allTables = $('table').map((_, t) =>
         `class="${$(t).attr('class')}" rows=${$(t).find('tr').length}`).get();
       console.log(`[doshisha] テーブル:\n${allTables.join('\n') || '(なし)'}`);
-      const bodyText = $('body').text().replace(/\s+/g, ' ').slice(0, 300);
-      console.log(`[doshisha] body冒頭: ${bodyText}`);
+      // result__tableの最初の3行のHTMLを丸ごとダンプ
+      $('table.result__table tr').slice(0, 3).each((i, tr) => {
+        console.log(`[doshisha] row${i} HTML: ${$(tr).html()?.slice(0, 300)}`);
+      });
     }
 
     // 確認済み: 同志社結果テーブルは class="result__table"
