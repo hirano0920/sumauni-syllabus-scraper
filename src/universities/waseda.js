@@ -14,22 +14,6 @@ import { buildLectureId, buildSlotKey, normalizeSubject, normalizeInstructor } f
 const UNIVERSITY_NAME = '早稲田大学';
 const SEARCH_URL = 'https://www.wsl.waseda.jp/syllabus/JAA101.php';
 
-const FACULTIES = [
-  { code: '111973', name: '政治経済学部' },
-  { code: '121973', name: '法学部' },
-  { code: '151949', name: '教育学部' },
-  { code: '161973', name: '商学部' },
-  { code: '181966', name: '社会科学部' },
-  { code: '211920', name: '文化構想学部' },
-  { code: '221920', name: '文学部' },
-  { code: '231920', name: '基幹理工学部' },
-  { code: '241920', name: '創造理工学部' },
-  { code: '251920', name: '先進理工学部' },
-  { code: '261920', name: '人間科学部' },
-  { code: '271920', name: 'スポーツ科学部' },
-  { code: '281920', name: '国際教養学部' },
-];
-
 const SEMESTERS = [
   { code: '1', label: '春学期' },
   { code: '2', label: '秋学期' },
@@ -41,6 +25,15 @@ export async function scrapeAll(fetcher, year = 2025) {
   const seen = new Set();
 
   return withPage(async (page) => {
+    // トップページから学部コードを動的に取得（推測コードの誤りを防ぐ）
+    await page.goto(SEARCH_URL, { waitUntil: 'networkidle', timeout: 30000 });
+    const FACULTIES = await page.evaluate(() =>
+      [...document.querySelectorAll('select[name="p_gakubu"] option')]
+        .filter(o => o.value && o.value !== ':')
+        .map(o => ({ code: o.value, name: o.text.trim() }))
+    );
+    console.log(`[waseda] 学部一覧(${FACULTIES.length}): ${FACULTIES.map(f => f.name).join(', ')}`);
+
     for (const faculty of FACULTIES) {
       for (const sem of SEMESTERS) {
         try {
