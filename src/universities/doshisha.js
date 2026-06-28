@@ -116,15 +116,17 @@ async function scrapeFaculty(page, year, faculty, seen) {
       const allTables = $('table').map((_, t) =>
         `class="${$(t).attr('class')}" rows=${$(t).find('tr').length}`).get();
       console.log(`[doshisha] テーブル:\n${allTables.join('\n') || '(なし)'}`);
-      // result__tableの最初の3行のHTMLを丸ごとダンプ
-      $('table.result__table tr').slice(0, 3).each((i, tr) => {
-        console.log(`[doshisha] row${i} HTML: ${$(tr).html()?.slice(0, 300)}`);
+      // result__tableの最初のtd行の各列をダンプ
+      const firstTdRow = $('table.result__table tr').filter((_, tr) => $(tr).find('td').length > 0).first();
+      console.log(`[doshisha] td数: ${firstTdRow.find('td').length}`);
+      firstTdRow.find('td').each((i, td) => {
+        console.log(`[doshisha] col[${i}]: ${$(td).text().trim().replace(/\s+/g,' ').slice(0, 40)}`);
       });
     }
 
-    // 確認済み: 同志社結果テーブルは class="result__table"
+    // 同志社: result__table、tdが1つ以上ある行を対象
     const rows = $('table.result__table tr')
-      .filter((_, tr) => $(tr).find('td').length >= 4);
+      .filter((_, tr) => $(tr).find('td').length > 0);
 
     let added = 0;
     rows.each((_, tr) => {
